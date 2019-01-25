@@ -43,7 +43,7 @@ func incrementing(add_number chan<-int, finished chan<- bool) {
 }
 
 func decrementing(add_number chan<- int, finished chan<- bool) {
-	for j := 0; j<1000001; j++ {
+	for j := 0; j<1000000; j++ {
 		add_number <- -1
 	}
 	//TODO: signal that the goroutine is finished
