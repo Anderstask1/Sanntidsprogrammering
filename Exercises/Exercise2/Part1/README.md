@@ -4,7 +4,7 @@
 > *An atomic operation in concurrent programming is operations running completely independent of all other operations. Of that reason the operation is guaranteed to avoid interruptions, multi-threading and multi-processing. In other words, the operations is not splittable in parts. Hence any other thread will eighter see the value of an atomic operation before or after the operation, not the intermediate value.*
 
 ### What is a semaphore?
-> *A semaphore is a variable used to control access to common resources by multiple processes in a concurrent system. It is typically a record of how many units of resource are available, together with operations to manipulate that record in a safe manner, yo avoid race conditions.*
+> *A semaphore is a variable used to control access to common resources by multiple processes in a concurrent system. It is typically a record of how many units of resource are available, together with operations to manipulate that record in a safe manner, to avoid race conditions.*
 
 ### What is a mutex?
 > *When I am having a big heated discussion at work, I use a rubber chicken which I keep in my desk for just such occasions. The person holding the chicken is the only person who is allowed to talk. If you don't hold the chicken you cannot speak. You can only indicate that you want the chicken and wait until you get it before you speak. Once you have finished speaking, you can hand the chicken back to the moderator who will hand it to the next person to speak. This ensures that people do not speak over each other, and also have their own space to talk.*
