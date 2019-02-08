@@ -12,7 +12,9 @@ defmodule Elevator do
       :world
 
   """
-  def hello do
-    :world
+  use Application
+
+  def hello() do
+    IO.puts "Hello"
   end
 end
