@@ -18,6 +18,37 @@ defmodule Elevator do
     :world
   end
 
+def simple_ele() do
+  {:ok, driver_pid}=Driver.start() #setup the elevator driver
+  if Driver.set_floor_indicator(driver_pid, 2) == :between_floors do
+    IO.puts "The cab is between floors"
+  end
+  Driver.set_motor_direction(driver_pid, :down)
+
+  until_reach_floor(driver_pid, 0)
+  IO.puts "Elevator is in floor 0"
+  Driver.set_motor_direction(driver_pid, :up)# :up or :down
+
+  until_reach_floor(driver_pid, 3)
+  IO.puts "Elevator is in floor 3"
+  Driver.set_motor_direction(driver_pid, :down)# :up or :down
+
+  until_reach_floor(driver_pid, 0)
+  IO.puts "Elevator is in floor 0"
+  Driver.stop(driver_pid)
+
+end
+
+def until_reach_floor(driver_pid, floor) do
+  if floor != Driver.get_floor_sensor_state(driver_pid) do
+    until_reach_floor(driver_pid, floor)
+  else
+    :ok
+  end
+end
+
+
+
 def server(name) do
   #To run this function:
   #   iex -S mix
