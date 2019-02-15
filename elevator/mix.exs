@@ -16,6 +16,7 @@ defmodule Elevator.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
+      # this is the name of any module implementing the Application behaviour
       extra_applications: [:logger]
     ]
   end
