@@ -1,5 +1,5 @@
 defmodule Elevator do
-  3use GenServer
+  #use GenServer
   #JMPT: I suggest using GenServer(Elixir Generic server) for the state machine
 
 
