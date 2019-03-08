@@ -56,6 +56,7 @@ defmodule Elevator do
 
   def hello do
     IO.puts "Hello brothers"
+    Distributor.hello
     :world
   end
 
