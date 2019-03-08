@@ -18,13 +18,11 @@ defmodule Elevator do
       :world
 
   """
-<<<<<<< HEAD
-  use Application
-
-  def hello() do
-    IO.puts "Hello"
-=======
-  IO.puts "This only runs doring compilation..."
+#   use Application
+#
+#   def hello() do
+#     IO.puts "Hello"
+  IO.puts "This only runs during compilation..."
 
   # #GenServer callbacks
   #
@@ -57,9 +55,8 @@ defmodule Elevator do
 
 
   def hello do
-    IO.puts "Hello brothres"
+    IO.puts "Hello brothers"
     :world
->>>>>>> 87b9ea81cd607535e14e0a20c559878267af2382
   end
 
 def simple_ele() do
