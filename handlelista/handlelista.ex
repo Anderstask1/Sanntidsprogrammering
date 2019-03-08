@@ -1,5 +1,10 @@
 defmodule Handlelista do
+<<<<<<< HEAD
 use GenServer
+=======
+  use GenServer
+
+>>>>>>> 0437e880959b7bd0f866bef5a63aee0001e97a76
   # What does the function take inn, what does it do and what can you expect to get as output
   @doc """
   returnerer :hello
