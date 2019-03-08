@@ -1,4 +1,5 @@
 defmodule Handlelista do
+  use GenServer
 
   # What does the function take inn, what does it do and what can you expect to get as output
   @doc """
