@@ -1,4 +1,4 @@
-defmodule Init
+"defmodule Init
 
   @moduledoc """
   This is the init module. The init module is setting up the system, doing the necessary initial
