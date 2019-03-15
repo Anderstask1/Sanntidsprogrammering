@@ -1,3 +1,3 @@
-defmodule Init
+"defmodule Init
 
-end
+end"
