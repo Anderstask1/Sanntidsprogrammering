@@ -14,7 +14,7 @@ defmodule Stack do
   end
 
   @impl true
-  def handle_cast({:push, item1}, state) do
+  def handle_cast({:push, item}, state) do
     {:noreply, [item | state]}
   end
 end
