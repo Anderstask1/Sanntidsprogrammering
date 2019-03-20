@@ -81,6 +81,9 @@ This is a module for creating and testing code that later can be used in the
 Observer module
 """
 
+@doc """
+Works
+"""
   def get_my_ip do
     {:ok, socket} = :gen_udp.open(6789, [active: false, broadcast: true])
     :ok = :gen_udp.send(socket, {255,255,255,255}, 6789, "test packet")
@@ -92,10 +95,16 @@ Observer module
     ip
   end
 
+@doc """
+Works
+"""
   def ip_to_string ip do
       :inet.ntoa(ip) |> to_string()
     end
 
+@doc """
+I wnat this to work the most! But not sure if it does or how.
+"""
   def all_nodes do
     case [Node.self | Node.list] do
       [:'nonode@nohost'] -> {:error, :node_not_running}
@@ -103,6 +112,9 @@ Observer module
     end
   end
 
+@doc """
+The last line in this function does not work.
+"""
   def boot_node(node_name, tick_time \\ 15000) do
     ip = get_my_ip() |> ip_to_string()
     full_name = node_name <> "@" <> ip
