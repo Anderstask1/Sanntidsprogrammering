@@ -1,0 +1,76 @@
+iex(1)> c("structs.ex")
+[Elevator, Lights, State, Order]
+
+iex(2)> order1 = %Order{type: :cab, floor: 1, cost: 0}
+%Order{cost: 0, floor: 1, type: :cab}
+
+iex(5)> order2 = %Order{type: :cab, floor: 2, cost: 2}
+%Order{cost: 2, floor: 2, type: :cab}
+
+iex(6)> orders = [order1, order2]
+[%Order{cost: 0, floor: 1, type: :cab}, %Order{cost: 2, floor: 2, type: :cab}]
+
+iex(7)> state = %State{direction: :up, floor: 1}
+%State{direction: :up, floor: 1}
+
+iex(8)> lights = %Lights{}
+%Lights{}
+
+iex(9)> elevator1 = %Elevator{state: state, orders: orders, lights: lights}
+%Elevator{
+  lights: %Lights{},
+  orders: [
+    %Order{cost: 0, floor: 1, type: :cab},
+    %Order{cost: 2, floor: 2, type: :cab}
+  ],
+  state: %State{direction: :up, floor: 1}
+}
+
+iex(10)> elevator2 = %Elevator{state: state, orders: orders, lights: lights}
+%Elevator{
+  lights: %Lights{},
+  orders: [
+    %Order{cost: 0, floor: 1, type: :cab},
+    %Order{cost: 2, floor: 2, type: :cab}
+  ],
+  state: %State{direction: :up, floor: 1}
+}
+
+iex(11)> complete_list = [{:ip1, elevator1},{:ip2, elevator2}]
+[
+  ip1: %Elevator{
+    lights: %Lights{},
+    orders: [
+      %Order{cost: 0, floor: 1, type: :cab},
+      %Order{cost: 2, floor: 2, type: :cab}
+    ],
+    state: %State{direction: :up, floor: 1}
+  },
+  ip2: %Elevator{
+    lights: %Lights{},
+    orders: [
+      %Order{cost: 0, floor: 1, type: :cab},
+      %Order{cost: 2, floor: 2, type: :cab}
+    ],
+    state: %State{direction: :up, floor: 1}
+  }
+]
+
+iex(12)> inspect complete_list
+"[ip1: %Elevator{lights: %Lights{}, orders: [%Order{cost: 0, floor: 1, type: :cab}, %Order{cost: 2, floor: 2, type: :cab}], state: %State{direction: :up, floor: 1}}, ip2: %Elevator{lights: %Lights{}, orders: [%Order{cost: 0, floor: 1, type: :cab}, %Order{cost: 2, floor: 2, type: :cab}], state: %State{direction: :up, floor: 1}}]"
+
+iex(21)> complete_list[:ip1]
+%Elevator{
+  lights: %Lights{},
+  orders: [
+    %Order{cost: 0, floor: 1, type: :cab},
+    %Order{cost: 2, floor: 2, type: :cab}
+  ],
+  state: %State{direction: :up, floor: 1}
+}
+iex(22)> complete_list[:ip1].state
+%State{direction: :up, floor: 1}
+iex(23)> complete_list[:ip1].state.direction
+:up
+iex(24)> complete_list[:ip1].state.floor
+1
