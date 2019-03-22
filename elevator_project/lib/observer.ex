@@ -1,78 +1,3 @@
-defmodule Observer do
-@moduledoc """
-This is the observer. It should send out its own information while it listen for
-other nodes as well. When it detects a new node, this node should be added to a
-sorted list of nodes. The list is sorted by IP-adresses. The node on the top of
-the list should send the list to its distributor.
-How does the old distributor know that it is no longer the master?
-spm:
-How do I make the beacon send out a signal to "everyone"?
-How do I make the radar listen for "everything"?
-What do I do in def start_link?
-How do they cluster?
-How do I make something public?
-"""
-  def hello do
-      IO.puts"Hello brothers"
-      :world
-  end
-
-  use GenServer
-"@BEACON_PORT 45678
-@RADAR_PORT 45679"
-
-@doc """
-start_link create a new server process, and spawns a function.
-It takes in the parameter 'port', which defaults to 45678.
-"""
-  def start_link(port \\ 45678) do
-    Task.start_link(fn -> radar() end)
-    GenServer.start_link(__MODULE__, port)
-
-  end
-
-@doc """
-init(port) initialize the transmitter.
-The initialization runs inside the server process right after it boots
-"""
-  def init(port) do
-    {:ok, beaconSocket} = :gen_udp.open(port, [active: true, broadcast: true])
-    beacon(beaconSocket)
-  end
-
-@doc """
-beacon(beaconSocket) takes in a socket number.
-It sleep for a random amount of time, and then beacons out its own information.
-Then it recall itself
-"""
-  def beacon(beaconSocket) do
-    :timer.sleep(1000 + :rand.uniform(500))
-    :ok = :gen_udp.send(beaconSocket, {10,22,77,37}, 45679, "hei")
-    beacon(beaconSocket)
-  end
-
-@doc """
-radar() initialize the reciever.
-"""
-  defp radar() do
-    {:ok, radarSocket} = :gen_udp.open(45679, [active: false, broadcast: true])
-    radar(radarSocket)
-  end
-
-@doc """
-radar(radarSocket) listen for messages sent to its socket.
-If it receive a message from a new node, it should add this node to a list.
-"""
-  def radar(radarSocket) do
-    case :gen_udp.recv(radarSocket, 1000) do
-      {:ok, {ip, _port, data}} -> IO.puts data
-      {:error, _} -> {:error, :could_not_receive}
-    end
-    radar(radarSocket)
-  end
-end
-
-
 defmodule NodeCollector do
 @moduledoc """
 This is a module for creating and testing code that later can be used in the
@@ -113,7 +38,6 @@ I want this to work the most! But not sure if it does or how.
     case [Node.self | Node.list] do
       [:'nonode@nohost'] -> {:error, :node_not_running}
       nodes -> nodes
-
     end
   end
 
@@ -124,10 +48,6 @@ The last line in this function does not work.
     ip = get_my_ip() |> ip_to_string()
     full_name = node_name <> "@" <> ip
     Node.start(String.to_atom(full_name), :longnames, tick_time)
-  end
-
-  def collect(ip, data) do
-
   end
 end
 
@@ -156,7 +76,7 @@ defmodule Beacon do
   """
     def beacon(beaconSocket) do
       :timer.sleep(1000 + :rand.uniform(500))
-      :ok = :gen_udp.send(beaconSocket, {10,22,77,37}, 45679, "test")
+      :ok = :gen_udp.send(beaconSocket, {10,22,77,37}, 45679, to_string(Node.self()))
       beacon(beaconSocket)
     end
 end
@@ -173,7 +93,7 @@ defmodule Radar do
   radar() initialize the reciever.
   """
   def init(port) do
-    {:ok, radarSocket} = :gen_udp.open(port, [active: true, broadcast: false])
+    {:ok, radarSocket} = :gen_udp.open(port, [active: false, broadcast: true])
     radar(radarSocket)
   end
 
@@ -182,10 +102,12 @@ defmodule Radar do
   If it receive a message from a new node, it should add this node to a list.
   """
   def radar(radarSocket) do
-    case :gen_udp.recv(radarSocket,100,1000) do
-      {:ok, {ip, _port, data}} -> IO.puts data
+    data = case :gen_udp.recv(radarSocket, 1000) do
+      {:ok, {ip, _port, data}} -> data
       {:error, _} -> {:error, :could_not_receive}
     end
+    Node.ping String.to_atom(to_string(data))
+    NodeCollector.all_nodes()
     radar(radarSocket)
   end
 

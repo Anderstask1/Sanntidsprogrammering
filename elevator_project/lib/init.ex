@@ -24,6 +24,6 @@ defmodule Init do
     ip = get_my_ip() |> ip_to_string()
     full_name = node_name <> "@" <> ip
     Node.start(String.to_atom(full_name), :longnames, tick_time)
-    Node.set_cookie :hallo
+    Node.set_cookie :hello
   end
 end
