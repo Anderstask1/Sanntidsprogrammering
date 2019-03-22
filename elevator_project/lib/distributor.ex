@@ -23,7 +23,12 @@ defmodule Distributor do
   """
   def hello do
     IO.puts "Hello brothers and sisters"
-    :world
+  end
+
+  receive do
+    {_} -> :true
+  after
+    10000 -> :ok
   end
 
   @doc """
@@ -34,10 +39,10 @@ defmodule Distributor do
     - integer where up = 1, down = -1 and idle = 0
   """
   def direction_to_integer(state) do
-      case state do
-          {:up, _} -> 1
-          {:idle, _} -> 0
-          {:down, _} -> -1
+      case state.direction do
+          :up -> 1
+          :idle -> 0
+          :down -> -1
           _ -> :error
       end
   end
@@ -57,24 +62,30 @@ defmodule Distributor do
   this function computes number of floors between a state and an order
   """
   def distance_between_orders(state, order) do
-      current_floor = state |> elem(1) # extract second element of tuple
-      abs(current_floor - order)
+      abs(state.floor - order.floor)
+  end
+
+  def is_same_floor_same_direction(state, order) do
+    case {state.direction, order.type} do
+      {:down, :hall_down} -> state.floor == order.floor
+      {:up, :hall_up} -> state.floor == order.floor
+      _ -> false
+    end
   end
 
   def simulate_elevator(duration, state, order) do
       cond do
-          order.type == :cab -> duration
           #state.floor == @top -> duration
           #state.floor == @bottom -> duration
-          state.direction == :down and order.type == :hall_down -> duration
-          state.direction == :up and order.type == :hall_up -> duration
+          is_same_floor_same_direction(state, order) -> duration
           true ->
-              case state do
+            state =
+              case {state.direction, state.floor} do
                   {:up, @top} -> %State{state | direction: :down}
                   {:down, @bottom} -> %State{state | direction: :up}
-                  _ ->  %State{state | floor: (state.floor + direction_to_integer(state))}
+                  _ -> %State{state | floor: (state.floor + direction_to_integer(state))}
               end
-              simulate_elevator(duration+1, state, order)
+            simulate_elevator(duration+1, state, order)
       end
   end
 
@@ -90,16 +101,17 @@ defmodule Distributor do
       #weight_nr_orders = 10
       #weight_distance_orders = 1
       #number_of_orders(orders)*weight_nr_orders + distance_between_orders(state, new_order)*weight_distance_orders
-      case state do
-          :idle ->
-            distance_between_orders(state, order)
+      case {state.direction, order.type} do
+          {:idle, _} -> distance_between_orders(state, order)
+          {_, :cab} -> distance_between_orders(state, order)
           _other ->
             simulate_elevator(0, state, order)
       end
   end
 
   def compute_cost_all_orders(state, orders) do
-      Enum.map(orders, fn order ->  %Order{order | cost: order.cost + compute_cost_order(state, orders)} end)
+      Enum.map(orders, fn order ->  %Order{order | cost: order.cost + compute_cost_order(state, order)} end)
+      Enum.sort_by(orders, & &1.cost)
   end
 
 end
