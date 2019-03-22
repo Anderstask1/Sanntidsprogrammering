@@ -2,10 +2,12 @@ defmodule Elevator do
   @moduledoc """
   This is the Elevator module
   """
+  @bottom_floor 0
+  @top_floor 3
 
 
   def start_working do
-    {:ok, pid_driver} = Driver.start()       #setup driver connection
+    {:ok, pid_driver} = Driver.start()            #setup driver connection
     {:ok,  pid_FSM  } = ElevatorFSM.start_link()  #connect_FSM()
     IO.puts "The FSM pid is #{inspect pid_FSM}"
     init_status=retrieve_local_backup()
@@ -42,13 +44,14 @@ defmodule Elevator do
 
   def elevator_loop(pid_FSM, pid_driver, pid_distributor, order) do
     ElevatorFSM.new_order(pid_FSM, pid_driver, order)
+
     {_state,current_floor,_movement} = ElevatorFSM.get_state(pid_FSM)
     if current_floor == order do
       ElevatorFSM.arrived(pid_FSM, pid_driver)
-      send_distributor_status(pid_driver)
+      #send_distributor_status(pid_driver)
       open_doors(pid_driver)
       ElevatorFSM.continue_working(pid_FSM)
-      send_distributor_status(pid_driver)
+      #send_distributor_status(pid_driver)
       :timer.sleep(100);
       Process.exit(self(), :kill)
     end
@@ -109,11 +112,12 @@ defmodule Elevator do
     Driver.set_door_open_light(pid_driver, :off)
   end
 
-  def send_distributor_status(_pid_driver) do
-    #==========================================================================
-    # TO DO: Send the status of elevator FSM and buttom pushes to distributor
-    #IO.puts "Sending status to distributor"
-  end
+  # def send_distributor_status(pid_distributor, pid_FSM) do
+  #   #==========================================================================
+  #   # TO DO: Send the status of elevator FSM and button pushes to distributor
+  #   #IO.puts "Sending status to distributor"
+  #   send pid_distributor {:orders}
+  # end
 
   def store_local_backup(complete_system) do
     # @doc """
@@ -138,5 +142,42 @@ defmodule Elevator do
   def pid(string) when is_binary(string) do
     :erlang.list_to_pid('<#{string}>')
   end
+
+
+  def order_collector(pid_driver, pid_distributor) do
+    order_collector(pid_driver, pid_distributor,[],[],[])
+  end
+
+  def order_collector(pid_driver, pid_distributor, previous_cabs, previous_up, previous_down) do
+
+    cabs = Enum.find_index(@bottom_floor..@top_floor, fn x -> Driver.get_order_button_state(pid_driver,x,:cab) == 1 end)
+    send_buttons(pid_distributor, :cab, cabs, previous_cabs)
+    hall_up = Enum.find_index(@bottom_floor..@top_floor, fn x -> Driver.get_order_button_state(pid_driver,x,:hall_up) == 1 end)
+    send_buttons(pid_distributor, :hall_up, hall_up, previous_up)
+    hall_down = Enum.find_index(@bottom_floor..@top_floor, fn x -> Driver.get_order_button_state(pid_driver,x,:hall_down) == 1 end)
+    send_buttons(pid_distributor, :hall_down, hall_down, previous_cabs)
+
+    order_collector(pid_driver, pid_distributor, cabs, hall_up, previous_down)
+  end
+
+  def send_buttons(pid_distributor, button_type, floors, previous) do
+    if floors != previous do
+      Enum.map(floors, fn x -> send( pid_distributor,{:order, self(),Order.init(button_type, x)}) end )
+    end
+  end
+
+  def test_collector() do
+    {:ok, pid_driver} = Driver.start()
+    _pid_collector = spawn fn -> order_collector(pid_driver,self()) end
+    test_collector(pid_driver)
+  end
+
+  def test_collector(_pid_driver) do
+    receive do
+      {:order, pid_elevator, order} ->
+        IO.puts "Elevator has sent #{inspect({:order, pid_elevator, order})}"
+    end
+  end
+
 
 end
