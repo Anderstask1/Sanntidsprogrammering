@@ -64,25 +64,40 @@ defmodule Elevator do
   @top_floor 3
   @valid_floor Enum.to_list @bottom_floor..@top_floor
 
-  defstruct [:state, :orders, :lights]
+  defstruct [:ip, :pid, :state, :orders, :lights]
 
   def valid do
     @valid_floor
   end
 
-  def init(state = %State{}, orders, lights) do
-    %Elevator{state: state, orders: orders, lights: lights}
+  def init(ip, pid, state = %State{}, orders, lights) do
+    %Elevator{ip: ip, pid: pid, state: state, orders: orders, lights: lights}
   end
 end
 
 defmodule CompleteSystem do
-  def init(ip1, elevator1, ip2, elevator2) do
-    [{ip1, elevator1},{ip2, elevator2}]
+
+  def init(elevator1, elevator2) do
+    [elevator1, elevator2]
+    #|> Enum.sort(complete_list)
   end
 
-  def add_elevator(complete_list, ip1, elevator1) do
-    [complete_list | {ip1, elevator1}]
+  def add_elevator(complete_list, elevator) do
+    [complete_list | elevator]
+    #|> Enum.sort(complete_list)
   end
+end
+
+defmodule Pid do
+  def init(x, y, z) when is_integer(x) and x >= 0 and
+                          is_integer(y) and y >= 0 and
+                          is_integer(z) and z >= 0 do
+      :erlang.list_to_pid(
+        '<' ++ Integer.to_charlist(x) ++ '.' ++
+               Integer.to_charlist(y) ++ '.' ++
+               Integer.to_charlist(z) ++ '>'
+      )
+    end
 end
 
 defmodule CreateList do
@@ -126,7 +141,10 @@ defmodule CreateList do
     light3 = Light.init(:hall_up, 2, :on)
     lights = [light1, light2, light3]
 
-    Elevator.init(state, orders, lights)
+    ip = {10, 100, 23, 151}
+    pid = Pid.init(0,109,0)
+
+    Elevator.init(ip, pid, state, orders, lights)
   end
 
   def init_list do
@@ -144,7 +162,10 @@ defmodule CreateList do
     light3 = Light.init(:hall_up, 2, :on)
     lights = [light1, light2, light3]
 
-    elevator1 = Elevator.init(state, orders, lights)
+    ip1 = {10, 100, 23, 151}
+    pid1 = Pid.init(0,109,0)
+
+    elevator1 = Elevator.init(ip1, pid1, state, orders, lights)
 
     state = State.init(:up, 2)
 
@@ -160,11 +181,12 @@ defmodule CreateList do
     light3 = Light.init(:hall_down, 3, :on)
     lights = [light1, light2, light3]
 
-    elevator2 = Elevator.init(state, orders, lights)
-    ip1 = {10, 100, 23, 151}
     ip2 = {10, 101, 23, 150}
-    complete_list = [{ip1, elevator1},{ip2, elevator2}]
-    Enum.sort(complete_list)
+    pid2 = Pid.init(0,110,0)
+
+    elevator2 = Elevator.init(ip2, pid2, state, orders, lights)
+
+    CompleteSystem.init(elevator1, elevator2)
   end
 end
 

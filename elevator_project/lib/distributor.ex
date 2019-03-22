@@ -25,11 +25,30 @@ defmodule Distributor do
     IO.puts "Hello brothers and sisters"
   end
 
-  receive do
-    state -> :true
-    order -> 
-  after
-    10000 -> :ok
+  def tell(receiver_pid, message) do
+    IO.puts "[#{inspect self}] Sending #{message} to #{inspect receiver_pid}"
+    send receiver_pid, {:ok, self, message}
+  end
+
+  def listen do
+    IO.puts "[#{inspect self}] is listening"
+    receive do
+      {:state, sender_pid, state} ->
+        IO.puts "[#{inspect self}] Received #{state} from #{inspect sender_pid}"
+        update_system_list(sender_pid, state)
+      {:order, sender_pid, order} ->
+        IO.puts "[#{inspect self}] Received #{order} from #{inspect sender_pid}"
+        update_system_list(sender_pid, state)
+    end
+    listen
+  end
+
+  def update_system_list(sender_pid, state = %State{}) do
+    system_list.elevator
+  end
+
+  def update_system_list(sender_pid, order = %Order{}) do
+
   end
 
   @doc """
