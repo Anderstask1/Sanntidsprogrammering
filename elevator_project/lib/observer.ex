@@ -6,11 +6,10 @@ Observer module
 
 @doc """
 spm:
-How do I make the beacon broadcast widely?
-How do I make the radar listen for "everything"?
-What do I do in def start_link?
-How do they cluster?
-How do I make something public?
+
+How to use observer.ex in init.ex
+How to sort the nodes
+global variables <8)
 """
 
   def get_my_ip do
@@ -32,7 +31,7 @@ Works
     end
 
 @doc """
-I want this to work the most! But not sure if it does or how.
+Returns all nodes in the cluster
 """
   def all_nodes do
     case [Node.self | Node.list] do
@@ -42,20 +41,27 @@ I want this to work the most! But not sure if it does or how.
   end
 
 @doc """
-The last line in this function does not work.
+boots a new node.
 """
   def boot_node(node_name, tick_time \\ 15000) do
     ip = get_my_ip() |> ip_to_string()
     full_name = node_name <> "@" <> ip
     Node.start(String.to_atom(full_name), :longnames, tick_time)
   end
+
 end
 
+
 defmodule Beacon do
+@moduledoc """
+This module broadcasts a signal containing it self to other nodes on the same network.
+"""
   use GenServer
   @beacon_port 45678
   @radar_port 45679
-
+@doc """
+start_link(port) boots a server process
+"""
   def start_link(port \\ 45678) do
     GenServer.start_link(__MODULE__, port)
   end
@@ -82,9 +88,14 @@ defmodule Beacon do
 end
 
 defmodule Radar do
+@moduledoc """
+This module receives a signal from a node, and add that node to the cluster.
+"""
   use GenServer
   @radar_port 45679
-
+  @doc """
+  start_link(port) boots a server process
+  """
   def start_link(port \\ 45679) do
     GenServer.start_link(__MODULE__, port)
   end
@@ -99,15 +110,13 @@ defmodule Radar do
 
   @doc """
   radar(radarSocket) listen for messages sent to its socket.
-  If it receive a message from a new node, it should add this node to a list.
+  If it receive a message from a new node, it should add this node to the cluster.
   """
   def radar(radarSocket) do
-    data = case :gen_udp.recv(radarSocket, 1000) do
-      {:ok, {ip, _port, data}} -> data
+    case :gen_udp.recv(radarSocket, 1000) do
+      {:ok, {_ip, _port, data}} -> Node.ping String.to_atom(to_string(data))
       {:error, _} -> {:error, :could_not_receive}
     end
-    Node.ping String.to_atom(to_string(data))
-    NodeCollector.all_nodes()
     radar(radarSocket)
   end
 
