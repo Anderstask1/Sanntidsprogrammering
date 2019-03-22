@@ -126,8 +126,13 @@ defmodule Elevator do
   end
 
   def get_my_ip do
-    {:ok, [{_noidea, _defini1, _mask1}, {ip, _defini, _mask2}]}= :inet.getif()
-    ip
+    case :inet.getif() do
+        {:ok, [{_noidea, _defini1, _mask1}, {ip, _defini, _mask2}]} ->
+            ip
+        {:ok, [_none1, {ip, _none2, _none3}, _none4]} ->
+            ip
+    end
+
   end
 
 end
