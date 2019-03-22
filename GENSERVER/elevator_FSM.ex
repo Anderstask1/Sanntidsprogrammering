@@ -96,7 +96,7 @@ defmodule ElevatorFSM do
   def handle_cast({:update_floor, pid_driver},{state,floor,movement}) do
     new_floor = Driver.get_floor_sensor_state(pid_driver)
     if floor == :unknow_floor do
-      IO.puts "Unknown floor"
+      #IO.puts "Unknown floor"
     end
     if new_floor == :between_floors do
       {:noreply, {state, floor ,movement}}
@@ -122,11 +122,11 @@ defmodule ElevatorFSM do
     if state == :IDLE do
       if order > floor do
         Driver.set_motor_direction(pid_driver, :up)
-        IO.puts "Moving up"
+        #IO.puts "Moving up"
         {:noreply, {:MOVE,floor,:moving_up}}
       else
         Driver.set_motor_direction(pid_driver, :down)
-        IO.puts "Moving down"
+        #IO.puts "Moving down"
         {:noreply, {:MOVE,floor,:moving_down}}
       end
     else
@@ -134,8 +134,8 @@ defmodule ElevatorFSM do
     end
   end
 
-  def handle_cast({:set_status,state,floor,movement}, oldstate) do
-    IO.puts "The pre-init status was: #{inspect oldstate}"
+  def handle_cast({:set_status,state,floor,movement}, _oldstate) do
+    #IO.puts "The pre-init status was: #{inspect oldstate}"
     {:noreply, {state, floor ,movement}}
   end
 
