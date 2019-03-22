@@ -26,7 +26,8 @@ defmodule Distributor do
   end
 
   receive do
-    {_} -> :true
+    state -> :true
+    order -> 
   after
     10000 -> :ok
   end
@@ -110,8 +111,8 @@ defmodule Distributor do
   end
 
   def compute_cost_all_orders(state, orders) do
-      Enum.map(orders, fn order ->  %Order{order | cost: order.cost + compute_cost_order(state, order)} end)
-      Enum.sort_by(orders, & &1.cost)
+      Enum.map(orders, fn order ->  %Order{order | cost: order.cost + compute_cost_order(state, order)} end) |>
+      Enum.sort_by(& &1.cost)
   end
 
 end

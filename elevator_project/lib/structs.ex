@@ -75,6 +75,16 @@ defmodule Elevator do
   end
 end
 
+defmodule CompleteSystem do
+  def init(ip1, elevator1, ip2, elevator2) do
+    [{ip1, elevator1},{ip2, elevator2}]
+  end
+
+  def add_elevator(complete_list, ip1, elevator1) do
+    [complete_list | {ip1, elevator1}]
+  end
+end
+
 defmodule CreateList do
 
   def init_state do
