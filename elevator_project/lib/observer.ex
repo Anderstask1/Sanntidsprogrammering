@@ -107,7 +107,7 @@ Works
     end
 
 @doc """
-I wnat this to work the most! But not sure if it does or how.
+I want this to work the most! But not sure if it does or how.
 """
   def all_nodes do
     case [Node.self | Node.list] do
