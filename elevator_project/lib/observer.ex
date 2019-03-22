@@ -37,8 +37,8 @@ init(port) initialize the transmitter.
 The initialization runs inside the server process right after it boots
 """
   def init(port) do
-    {:ok, beaconSocket} = :gen_udp.open(port, [active: false, broadcast: true])
-    beacon(beaconSocket)
+    {:ok, beaconSocket} = :gen_udp.open(port, [active: true, broadcast: true])
+    
   end
 
 @doc """
@@ -48,7 +48,7 @@ Then it recall itself
 """
   def beacon(beaconSocket) do
     :timer.sleep(1000 + :rand.uniform(500))
-    :ok = :gen_udp.send(beaconSocket, {255,255,255,255}, 45679, "test")
+    :ok = :gen_udp.send(beaconSocket, {10,22,77,37}, 45679, "halla")
     beacon(beaconSocket)
   end
 
@@ -66,17 +66,16 @@ If it receive a message from a new node, it should add this node to a list.
 """
   def radar(radarSocket) do
     ip = case :gen_udp.recv(radarSocket, 1000) do
-      {:ok, {ip, _port, data}} -> ip
+      {:ok, {ip, _port, data}} -> IO.puts data
       {:error, _} -> {:error, :could_not_receive}
     end
-    ip_to_string(ip)
     radar(radarSocket)
   end
 end
 
 
 defmodule NodeCollector do
-@@moduledoc """
+@moduledoc """
 This is a module for creating and testing code that later can be used in the
 Observer module
 """
@@ -103,7 +102,7 @@ Works
     end
 
 @doc """
-I wnat this to work the most! But not sure if it does or how.
+I want this to work the most! But not sure if it does or how.
 """
   def all_nodes do
     case [Node.self | Node.list] do
