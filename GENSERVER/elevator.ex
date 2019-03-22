@@ -18,7 +18,7 @@ defmodule Elevator do
   end
 
   def elevator_loop(pid_FSM, pid_driver, list_of_orders) do
-    #list_of_orders = get_orders()  #receive the orders from the distributor
+    list_of_orders = get_orders()  #receive the orders from the distributor
     if list_of_orders != [] do
       order = List.first(list_of_orders)
       ElevatorFSM.new_order(pid_FSM, pid_driver, order)
