@@ -20,10 +20,12 @@ defmodule Init do
     ip
   end
 
-  def init(node_name, tick_time \\ 15000) do
+  def init(tick_time \\ 15000) do
     ip = get_my_ip() |> ip_to_string()
-    full_name = node_name <> "@" <> ip
+    full_name = "heis" <> "@" <> ip
     Node.start(String.to_atom(full_name), :longnames, tick_time)
     Node.set_cookie :hello
+    spawn fn -> Beacon.start_link end
+    spawn fn -> Radar.start_link end
   end
 end
