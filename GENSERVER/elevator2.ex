@@ -125,14 +125,18 @@ defmodule Elevator do
     File.close(file)
   end
 
-  def get_my_ip do
+  def get_my_local_ip do
     case :inet.getif() do
-        {:ok, [{_noidea, _defini1, _mask1}, {ip, _defini, _mask2}]} ->
+        {:ok, [{ip, _defini1, _mask1}, {_nope, _defini, _mask2}]} ->
             ip
         {:ok, [_none1, {ip, _none2, _none3}, _none4]} ->
             ip
     end
 
+  end
+
+  def pid(string) when is_binary(string) do
+    :erlang.list_to_pid('<#{string}>')
   end
 
 end
