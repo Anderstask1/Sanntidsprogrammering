@@ -13,8 +13,8 @@ defmodule  Order do
     {@valid_type, @valid_floor}
   end
 
-  def init(type, floor) when type in @valid_type and floor in  @valid_floor do
-    %Order{type: type, floor: floor, cost: 0}
+  def init(type, floor, cost \\ 0) when type in @valid_type and floor in  @valid_floor do
+    %Order{type: type, floor: floor, cost: cost}
   end
 end
 
@@ -83,8 +83,21 @@ defmodule CompleteSystem do
   end
 
   def add_elevator(complete_list, elevator) do
-    [complete_list | elevator]
+    complete_list ++ [elevator]
     #|> Enum.sort(complete_list)
+  end
+
+  def find_elevator_by_pid(complete_list, pid, iterate \\ 0) do
+    elevator = Enum.at(complete_list, iterate)
+    if elevator.pid == pid do
+      elevator
+    else
+      find_elevator_by_pid(complete_list, pid, iterate + 1)
+    end
+  end
+
+  def replace_elevator_by_pid(complete_list, pid, iterate \\ 0) do
+
   end
 end
 
