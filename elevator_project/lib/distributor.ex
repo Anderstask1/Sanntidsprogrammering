@@ -12,16 +12,24 @@ defmodule Distributor do
     []
   end
 
+  # GENSERVER
+
+  def init(initial_data) do #set the initial state
+    {:ok, initial_data}
+  end
+
   def start do
-    start {127,0,0,1}, 15657
+    start {127,0,0,1}, 15657 #calls function bellow with correct adress and port
   end
 
   def start address, port do
     GenServer.start_link(__MODULE__, [address, port], [])
   end
 
+  # MAILBOX
+
   def tell(receiver_pid, message) do
-    IO.puts "[#{inspect self()}] Sending #{message} to #{inspect receiver_pid}"
+    IO.puts "[#{inspect self()}] Sending #{message} to #{inspect receiver_pid}" #logging
     send receiver_pid, {:ok, self(), message}
   end
 
@@ -75,6 +83,8 @@ defmodule Distributor do
           _ -> :error
       end
   end
+
+  # COST COMPUTATION
 
   @doc """
   this function count the number of orders of a single elevator
