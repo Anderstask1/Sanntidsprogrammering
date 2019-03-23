@@ -8,11 +8,47 @@ defmodule Distributor do
   @top 3
   @bottom 0
 
-  def init() do
-    []
-  end
+  # =========== GENSERVER =============
 
-  # GENSERVER
+  # def get_state(pid_FSM) do
+  #     GenServer.call(pid_FSM, :get_state)
+  # end
+  #
+  # def update_movement(pid_FSM, new_movement) do
+  #    GenServer.cast(pid_FSM, {:update_movement, new_movement})
+  # end
+  #
+  # def update_floor(pid_FSM, pid_driver) do
+  #    GenServer.cast(pid_FSM, {:update_floor, pid_driver})
+  # end
+  #
+  # def handle_call(:get_state, _from, state) do
+  #   {:reply, state, state}
+  # end
+  #
+  # def handle_cast({:update_movement, new_movement},{state,floor,movement}) do
+  #   if new_movement == movement do
+  #     {:noreply, {state,floor, movement}}
+  #   else
+  #     if new_movement ==  :stopped do
+  #       {:noreply, {:IDLE,floor, new_movement}}
+  #     else
+  #       {:noreply, {:MOVE,floor, new_movement}}
+  #     end
+  #   end
+  # end
+  #
+  # def handle_cast({:update_floor, pid_driver},{state,floor,movement}) do
+  #   new_floor = Driver.get_floor_sensor_state(pid_driver)
+  #   if floor == :unknow_floor do
+  #     #IO.puts "Unknown floor"
+  #   end
+  #   if new_floor == :between_floors do
+  #     {:noreply, {state, floor ,movement}}
+  #   else
+  #     {:noreply, {state,new_floor ,movement}}
+  #   end
+  # end
 
   def init(initial_data) do #set the initial state
     {:ok, initial_data}
@@ -26,7 +62,38 @@ defmodule Distributor do
     GenServer.start_link(__MODULE__, [address, port], [])
   end
 
-  # MAILBOX
+  def start complete_list do
+    GenServer.start_link(__MODULE__, complete_list, [])
+  end
+
+  def get_state(pid_complete_list) do
+      GenServer.call(pid_complete_list, :get_state)
+  end
+
+  def update_complete_list(pid_complete_list, new_elevator = %Elevator{}) do
+    complete_list = get_state(pid_complete_list)
+    GenServer.cast(pid_complete_list, {:update_movement, complete_list ++ [new_elevator]})
+  end
+
+  #============ CAST AND CALLS ===================
+
+  def handle_call(:get_state, _from, state) do
+    {:reply, state, state}
+  end
+
+  def handle_cast({:update_movement, new_movement},{state,floor,movement}) do
+    if new_movement == movement do
+      {:noreply, {state,floor, movement}}
+    else
+      if new_movement ==  :stopped do
+        {:noreply, {:IDLE,floor, new_movement}}
+      else
+        {:noreply, {:MOVE,floor, new_movement}}
+      end
+    end
+  end
+
+  #============ MAILBOX ============
 
   def tell(receiver_pid, message) do
     IO.puts "[#{inspect self()}] Sending #{message} to #{inspect receiver_pid}" #logging
@@ -72,6 +139,8 @@ defmodule Distributor do
   #   end
   # end
 
+  #============== COST COMPUTATION ===================
+
   @doc """
   this function converts the direction in atoms to an integer
   """
@@ -83,8 +152,6 @@ defmodule Distributor do
           _ -> :error
       end
   end
-
-  # COST COMPUTATION
 
   @doc """
   this function count the number of orders of a single elevator
