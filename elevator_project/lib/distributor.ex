@@ -4,52 +4,61 @@ defmodule Distributor do
   of shortest-path and cost function, in order to distribute elevator orders. The distribitur in all
   nodes recieves the list of orders and states, but only the master distribitur distribute.
   """
+  use GenServer
   @top 3
   @bottom 0
+
+  def init() do
+    []
+  end
+
+  def start_link() do
+    GenServer.start_link(complete_list, :queue.new())
+  end
 
   def tell(receiver_pid, message) do
     IO.puts "[#{inspect self()}] Sending #{message} to #{inspect receiver_pid}"
     send receiver_pid, {:ok, self(), message}
   end
 
-  def listen do
-    IO.puts "[#{inspect self()}] is listening"
-    receive do
-      {:state, sender_pid, state} ->
-        IO.puts "[#{inspect self()}] Received #{state} from #{inspect sender_pid}"
-        update_system_list(sender_pid, state)
-      {:order, sender_pid, order} ->
-        IO.puts "[#{inspect self()}] Received #{order} from #{inspect sender_pid}"
-        update_system_list(sender_pid, order)
-    end
-    listen()
-  end
-
-  def update_system_list(sender_pid, state = %State{}) do
-    elevator = CompleteSystem.elevator_by_pid(:find, complete_list, sender_pid)
-    %{elevator | state: state}
-    CompleteSystem.elevator_by_pid(:replace, complete_list, sender_pid, elevator)
-    update_orders_completed(sender_pid, state)
-  end
-
-  def update_system_list(sender_pid, order = %Order{}) do
-    elevator = CompleteSystem.elevator_by_pid(:find, complete_list, sender_pid)
-    %{elevator | orders: elevator.orders ++ order}
-    CompleteSystem.elevator_by_pid(:replace, complete_list, sender_pid, elevator)
-  end
-
-  def update_orders_completed(sender_pid, state, iterate \\ 0) do
-    elevator = CompleteSystem.elevator_by_pid(:find, complete_list, sender_pid)
-    orders = elevator.orders
-    order = Enum.at(orders, iterate)
-    if is_same_floor_same_direction(state, order) do
-      %{elevator | orders: List.delete_at(orders, iterate)}
-      CompleteSystem.elevator_by_pid(:replace, complete_list, sender_pid, elevator)
-    end
-    if iterate < orders.length do
-      update_orders_completed(sender_pid, state, iterate + 1)
-    end
-  end
+  # def listen do
+  #   IO.puts "[#{inspect self()}] is listening"
+  #   receive do
+  #     {:state, sender_pid, state} ->
+  #       IO.puts "[#{inspect self()}] Received #{state} from #{inspect sender_pid}"
+  #       update_system_list(sender_pid, state)
+  #     {:order, sender_pid, order} ->
+  #       IO.puts "[#{inspect self()}] Received #{order} from #{inspect sender_pid}"
+  #       update_system_list(sender_pid, order)
+  #   end
+  #   listen()
+  # end
+  #
+  # def update_system_list(sender_pid, state = %State{}) do
+  #   elevator = CompleteSystem.elevator_by_pid(:find, complete_list, sender_pid)
+  #   %{elevator | state: state}
+  #   CompleteSystem.elevator_by_pid(:replace, complete_list, sender_pid, elevator)
+  #   update_orders_completed(sender_pid, state)
+  # end
+  #
+  # def update_system_list(sender_pid, order = %Order{}) do
+  #   elevator = CompleteSystem.elevator_by_pid(:find, complete_list, sender_pid)
+  #   %{elevator | orders: elevator.orders ++ order}
+  #   CompleteSystem.elevator_by_pid(:replace, complete_list, sender_pid, elevator)
+  # end
+  #
+  # def update_orders_completed(sender_pid, state, iterate \\ 0) do
+  #   elevator = CompleteSystem.elevator_by_pid(:find, complete_list, sender_pid)
+  #   orders = elevator.orders
+  #   order = Enum.at(orders, iterate)
+  #   if is_same_floor_same_direction(state, order) do
+  #     %{elevator | orders: List.delete_at(orders, iterate)}
+  #     CompleteSystem.elevator_by_pid(:replace, complete_list, sender_pid, elevator)
+  #   end
+  #   if iterate < orders.length do
+  #     update_orders_completed(sender_pid, state, iterate + 1)
+  #   end
+  # end
 
   @doc """
   this function converts the direction in atoms to an integer

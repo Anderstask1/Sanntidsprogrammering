@@ -87,7 +87,7 @@ defmodule CompleteSystem do
     #|> Enum.sort(complete_list)
   end
 
-  def elevator_by_pid(key, complete_list, pid, index \\ 0, elevator_replace \\ _) do
+  def elevator_by_pid(key, complete_list, pid, index \\ 0, elevator_replace \\ []) do
     elevator = Enum.at(complete_list, index)
     if elevator.pid == pid do
       case key do
@@ -96,7 +96,7 @@ defmodule CompleteSystem do
         # :delete -> List.delete_at(complete_list, index)
       end
     else
-      find_elevator_by_pid(key, complete_list, pid, index + 1, elevator_replace)
+      elevator_by_pid(key, complete_list, pid, index + 1, elevator_replace)
     end
   end
 
