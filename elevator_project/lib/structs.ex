@@ -206,8 +206,3 @@ defmodule CreateList do
     CompleteSystem.init(elevator1, elevator2)
   end
 end
-
-# We can use alias to shorten the path
-# iex -> alias complete_list[:ip1].state
-# iex -> state.floor
-# 1
