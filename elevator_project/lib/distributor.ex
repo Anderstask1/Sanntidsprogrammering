@@ -44,23 +44,25 @@ defmodule Distributor do
   end
 
   def update_system_list(sender_pid, state = %State{}) do
-    elevator = CompleteSystem.find_elevator_by_pid(complete_list, sender_pid)
+    elevator = CompleteSystem.elevator_by_pid(:find, complete_list, sender_pid)
     %{elevator | state: state}
-    
+    CompleteSystem.elevator_by_pid(:replace, complete_list, sender_pid, elevator)
     update_orders_completed(sender_pid, state)
   end
 
   def update_system_list(sender_pid, order = %Order{}) do
-    :elevator_old = CompleteSystem.find_elevator_by_pid(complete_list, sender_pid)
-    %{elevator_old | orders: elevator_old.orders ++ order}
+    elevator = CompleteSystem.elevator_by_pid(:find, complete_list, sender_pid)
+    %{elevator | orders: elevator.orders ++ order}
+    CompleteSystem.elevator_by_pid(:replace, complete_list, sender_pid, elevator)
   end
 
   def update_orders_completed(sender_pid, state, iterate \\ 0) do
-    elevator = CompleteSystem.find_elevator_by_pid(complete_list, sender_pid)
+    elevator = CompleteSystem.elevator_by_pid(:find, complete_list, sender_pid)
     orders = elevator.orders
     order = Enum.at(orders, iterate)
     if is_same_floor_same_direction(state, order) do
       %{elevator | orders: List.delete_at(orders, iterate)}
+      CompleteSystem.elevator_by_pid(:replace, complete_list, sender_pid, elevator)
     end
     if iterate < orders.length do
       update_orders_completed(sender_pid, state, iterate + 1)
