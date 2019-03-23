@@ -12,8 +12,12 @@ defmodule Distributor do
     []
   end
 
-  def start_link() do
-    GenServer.start_link(complete_list, :queue.new())
+  def start do
+    start {127,0,0,1}, 15657
+  end
+
+  def start address, port do
+    GenServer.start_link(__MODULE__, [address, port], [])
   end
 
   def tell(receiver_pid, message) do
