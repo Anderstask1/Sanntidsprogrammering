@@ -14,14 +14,6 @@ defmodule Distributor do
     {:ok, _} = start([])
   end
 
-  # def start do
-  #   start {127,0,0,1}, 15657 #calls function bellow with correct adress and port
-  # end
-  #
-  # def start address, port do
-  #   GenServer.start_link(__MODULE__, [address, port], [])
-  # end
-
   def start(complete_list) do
     GenServer.start_link(__MODULE__, [], name: :genserver)
   end
@@ -163,7 +155,9 @@ defmodule Distributor do
   end
 
   def compute_cost_all_orders(state, orders) do
-      Enum.map(orders, fn order ->  %Order{order | cost: order.cost + compute_cost_order(state, order)} end)
-      #Enum.sort_by(& &1.cost)
+      cost_sum = []
+      Enum.map(orders, fn order ->  %Order{order | cost: order.cost + compute_cost_order(state, order)} end) |>
+      Enum.map(fn order -> cost_sum ++ order.cost end) |>
+      Enum.sum()
   end
 end
