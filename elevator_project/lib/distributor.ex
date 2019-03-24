@@ -20,7 +20,7 @@ defmodule Distributor do
   end
 
   def get_complete_list do
-      GenServer.call(:genserver, :get_complete_list)
+    GenServer.call(:genserver, :get_complete_list)
   end
 
   def update_complete_list(new_elevator) do
@@ -28,29 +28,38 @@ defmodule Distributor do
   end
 
   def find_elevator_in_complete_list(pid) do
-      GenServer.call(:genserver, {:find_elevator_in_complete_list, pid})
+    GenServer.call(:genserver, {:find_elevator_in_complete_list, pid})
   end
 
-  def replace_elevator(new_elevator, sender_pid) do
-      GenServer.cast(:genserver, {:replace_elevator, new_elevator, sender_pid})
+  def replace_elevator(new_elevator, pid) do
+    GenServer.cast(:genserver, {:replace_elevator, new_elevator, pid})
+  end
+
+  def broadcast_complete_list_to_elevator(pid) do
+    GenServer.cast(:genserver, {:broadcast_complete_list_to_elevator, pid})
   end
 
   #-------------CAST AND CALLS -----------------
 
   def handle_call(:get_complete_list, _from, complete_list) do
-    {:reply, complete_list, complete_list}
+      {:reply, complete_list, complete_list}
   end
 
   def handle_cast({:update_complete_list, new_elevator}, complete_list) do
-    {:noreply, complete_list ++ new_elevator}
+      {:noreply, complete_list ++ new_elevator}
   end
 
   def handle_call({:find_elevator_in_complete_list, pid}, _from, complete_list) do
-    {:reply, CompleteSystem.elevator_by_key(:find_pid, complete_list, pid), complete_list}
+      {:reply, CompleteSystem.elevator_by_key(:find_pid, complete_list, pid), complete_list}
   end
 
-  def handle_cast({:replace_elevator, new_elevator, sender_pid}, complete_list) do
-    {:noreply, CompleteSystem.elevator_by_key(:replace, complete_list, sender_pid, new_elevator)}
+  def handle_cast({:replace_elevator, new_elevaator, pid}, complete_list) do
+      {:noreply, CompleteSystem.elevator_by_key(:replace, complete_list, pid, new_elevator)}
+  end
+
+  def handle_cast({:broadcast_complete_list_to_elevator, pid}, complete_list) do
+      tell(pid, complete_list)
+      {:noreply, :ok}
   end
 
   #============ MAILBOX ============
@@ -74,29 +83,41 @@ defmodule Distributor do
   end
 
   def update_system_list(sender_pid, state = %State{}) do #update state of elevator by pid
-    elevator = CompleteSystem.elevator_by_key(:find_pid, get_complete_list(), sender_pid)
+    elevator = find_elevator_in_complete_list(sender_pid)
     %{elevator | state: state}
-    complete_system = CompleteSystem.elevator_by_key(:replace, get_complete_list(), sender_pid, elevator)
-    update_orders_completed(sender_pid, state)
+    complete_system = replace_elevator(elevator, sender_pid)
+    delete_orders_completed(sender_pid, state)
+    broadcast_complete_list(get_complete_list())
   end
 
-  def update_system_list(sender_pid, order = %Order{}) do #distribute order to elevator with minimum cost, now it just add order to same elevator
+  def update_system_list(sender_pid, order = %Order{}) do #distribute order to elevator with minimum cost
     elevator_min_cost = compute_min_cost_all_elevators(get_complete_list())
     orders = elevator_min_cost.orders ++ [order]
-    CompleteSystem.elevator_by_key(:replace, get_complete_list(), sender_pid, elevator_min_cost)
+    replace_elevator(elevator_min_cost, sender_pid)
+    broadcast_complete_list(get_complete_list())
   end
 
-  def update_orders_completed(sender_pid, state, iterate \\ 0) do #check if new state of elevator is the same floor and direction as existing order
-    elevator = CompleteSystem.elevator_by_key(:find_pid, get_complete_list(), sender_pid)
+  def delete_orders_completed(sender_pid, state, iterate \\ 0) do #delete order if new state of elevator is the same floor and direction as existing order
+    elevator = find_elevator_in_complete_list(sender_pid)
     orders = elevator.orders
     order = Enum.at(orders, iterate)
-    if is_same_floor_same_direction(state, order) do
+    if state.floor == order.floor and state.direction == :idle do
       %{elevator | orders: List.delete_at(orders, iterate)}
-      CompleteSystem.elevator_by_key(:replace, get_complete_list(), sender_pid, elevator)
+      replace_elevator(elevator, sender_pid)
     end
     if iterate < orders.length do
-      update_orders_completed(sender_pid, state, iterate + 1)
+      delete_orders_completed(sender_pid, state, iterate + 1)
     end
+  end
+
+  def broadcast_complete_list(complete_list, index \\ 0) do
+      elevator = Enum.at(complete_list, index)
+      cond do
+          elevator == nil -> :error
+          true ->
+              broadcast_complete_list_to_elevator(elevator.pid)
+              broadcast_complete_list(complete_list, index + 1)
+      end
   end
 
   #============== COST COMPUTATION ===================
