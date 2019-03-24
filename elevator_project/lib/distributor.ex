@@ -10,74 +10,34 @@ defmodule Distributor do
 
   # =========== GENSERVER =============
 
-  # def get_state(pid_FSM) do
-  #     GenServer.call(pid_FSM, :get_state)
-  # end
-  #
-  # def update_movement(pid_FSM, new_movement) do
-  #    GenServer.cast(pid_FSM, {:update_movement, new_movement})
-  # end
-  #
-  # def update_floor(pid_FSM, pid_driver) do
-  #    GenServer.cast(pid_FSM, {:update_floor, pid_driver})
-  # end
-  #
-  # def handle_call(:get_state, _from, state) do
-  #   {:reply, state, state}
-  # end
-  #
-  # def handle_cast({:update_movement, new_movement},{state,floor,movement}) do
-  #   if new_movement == movement do
-  #     {:noreply, {state,floor, movement}}
-  #   else
-  #     if new_movement ==  :stopped do
-  #       {:noreply, {:IDLE,floor, new_movement}}
-  #     else
-  #       {:noreply, {:MOVE,floor, new_movement}}
-  #     end
-  #   end
-  # end
-  #
-  # def handle_cast({:update_floor, pid_driver},{state,floor,movement}) do
-  #   new_floor = Driver.get_floor_sensor_state(pid_driver)
-  #   if floor == :unknow_floor do
-  #     #IO.puts "Unknown floor"
-  #   end
-  #   if new_floor == :between_floors do
-  #     {:noreply, {state, floor ,movement}}
-  #   else
-  #     {:noreply, {state,new_floor ,movement}}
-  #   end
-  # end
-
-  def init(initial_data) do #set the initial state
-    {:ok, initial_data}
+  def init do #create the genserver with an empty list
+    {:ok, _} = start([])
   end
 
-  def start do
-    start {127,0,0,1}, 15657 #calls function bellow with correct adress and port
+  # def start do
+  #   start {127,0,0,1}, 15657 #calls function bellow with correct adress and port
+  # end
+  #
+  # def start address, port do
+  #   GenServer.start_link(__MODULE__, [address, port], [])
+  # end
+
+  def start(complete_list) do
+    GenServer.start_link(__MODULE__, [], name: :genserver)
   end
 
-  def start address, port do
-    GenServer.start_link(__MODULE__, [address, port], [])
+  def get_complete_list do
+      GenServer.call(:genserver, :get_complete_list)
   end
 
-  def start complete_list do
-    GenServer.start_link(__MODULE__, complete_list, [])
-  end
-
-  def get_state(pid_complete_list) do
-      GenServer.call(pid_complete_list, :get_state)
-  end
-
-  def update_complete_list(pid_complete_list, new_elevator) do
-    GenServer.cast(pid_complete_list, {:update_complete_list, new_elevator})
+  def update_complete_list(new_elevator) do
+    GenServer.cast(:genserver, {:update_complete_list, new_elevator})
   end
 
   #============ CAST AND CALLS ===================
 
-  def handle_call(:get_state, _from, state) do
-    {:reply, state, state}
+  def handle_call(:get_complete_list, _from, complete_list) do
+    {:reply, complete_list, complete_list}
   end
 
   def handle_cast({:update_complete_list, new_elevator}, complete_list) do
@@ -104,26 +64,26 @@ defmodule Distributor do
     listen()
   end
 
-  def update_system_list(sender_pid, state = %State{}) do
-    elevator = CompleteSystem.elevator_by_pid(:find, complete_list, sender_pid)
+  def update_system_list(sender_pid, state = %State{}) do #update state of elevator by pid
+    elevator = CompleteSystem.elevator_by_pid(:find, get_complete_list(), sender_pid)
     %{elevator | state: state}
-    CompleteSystem.elevator_by_pid(:replace, complete_list, sender_pid, elevator)
+    CompleteSystem.elevator_by_pid(:replace, get_complete_list(), sender_pid, elevator)
     update_orders_completed(sender_pid, state)
   end
 
-  def update_system_list(sender_pid, order = %Order{}) do
-    elevator = CompleteSystem.elevator_by_pid(:find, complete_list, sender_pid)
+  def update_system_list(sender_pid, order = %Order{}) do #distribute order to elevator with minimum cost, now it just add order to same elevator
+    elevator = CompleteSystem.elevator_by_pid(:find, get_complete_list(), sender_pid)
     %{elevator | orders: elevator.orders ++ order}
-    CompleteSystem.elevator_by_pid(:replace, complete_list, sender_pid, elevator)
+    CompleteSystem.elevator_by_pid(:replace, get_complete_list(), sender_pid, elevator)
   end
 
   def update_orders_completed(sender_pid, state, iterate \\ 0) do
-    elevator = CompleteSystem.elevator_by_pid(:find, complete_list, sender_pid)
+    elevator = CompleteSystem.elevator_by_pid(:find, get_complete_list(), sender_pid)
     orders = elevator.orders
     order = Enum.at(orders, iterate)
     if is_same_floor_same_direction(state, order) do
       %{elevator | orders: List.delete_at(orders, iterate)}
-      CompleteSystem.elevator_by_pid(:replace, complete_list, sender_pid, elevator)
+      CompleteSystem.elevator_by_pid(:replace, get_complete_list(), sender_pid, elevator)
     end
     if iterate < orders.length do
       update_orders_completed(sender_pid, state, iterate + 1)
