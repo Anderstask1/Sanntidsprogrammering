@@ -104,6 +104,14 @@ defmodule Distributor do
       end
   end
 
+  def direction_order_to_state(order) do
+      case order.type do
+          :cab -> :idle
+          :hall_up -> :up
+          :hall_down -> :down
+      end
+  end
+
   @doc """
   this function count the number of orders of a single elevator
   """
@@ -155,7 +163,7 @@ defmodule Distributor do
   end
 
   def compute_cost_all_orders(state, orders) do
-      Enum.map(orders, fn order ->  %Order{order | cost: order.cost + compute_cost_order(state, order)} end) |>
-      Enum.sort_by(& &1.cost)
+      Enum.map(orders, fn order ->  %Order{order | cost: order.cost + compute_cost_order(state, order)} end)
+      #Enum.sort_by(& &1.cost)
   end
 end
