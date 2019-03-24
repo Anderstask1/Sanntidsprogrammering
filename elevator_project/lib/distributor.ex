@@ -70,9 +70,8 @@ defmodule Distributor do
       GenServer.call(pid_complete_list, :get_state)
   end
 
-  def update_complete_list(pid_complete_list, new_elevator = %Elevator{}) do
-    complete_list = get_state(pid_complete_list)
-    GenServer.cast(pid_complete_list, {:update_movement, complete_list ++ [new_elevator]})
+  def update_complete_list(pid_complete_list, new_elevator) do
+    GenServer.cast(pid_complete_list, {:update_complete_list, new_elevator})
   end
 
   #============ CAST AND CALLS ===================
@@ -81,16 +80,8 @@ defmodule Distributor do
     {:reply, state, state}
   end
 
-  def handle_cast({:update_movement, new_movement},{state,floor,movement}) do
-    if new_movement == movement do
-      {:noreply, {state,floor, movement}}
-    else
-      if new_movement ==  :stopped do
-        {:noreply, {:IDLE,floor, new_movement}}
-      else
-        {:noreply, {:MOVE,floor, new_movement}}
-      end
-    end
+  def handle_cast({:update_complete_list, new_elevator}, complete_list) do
+    {:noreply, complete_list ++ [new_elevator]}
   end
 
   #============ MAILBOX ============

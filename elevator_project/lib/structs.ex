@@ -60,15 +60,8 @@ defmodule Light do
 end
 
 defmodule Elevator do
-  @bottom_floor 0
-  @top_floor 3
-  @valid_floor Enum.to_list @bottom_floor..@top_floor
 
   defstruct [:ip, :pid, :state, :orders, :lights]
-
-  def valid do
-    @valid_floor
-  end
 
   def init(ip, pid, state = %State{}, orders, lights) do
     %Elevator{ip: ip, pid: pid, state: state, orders: orders, lights: lights}
@@ -100,9 +93,6 @@ defmodule CompleteSystem do
     end
   end
 
-  def replace_elevator_by_pid(complete_list, pid, index \\ 0) do
-
-  end
 end
 
 defmodule Pid do
