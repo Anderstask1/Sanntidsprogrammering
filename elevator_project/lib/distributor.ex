@@ -8,7 +8,7 @@ defmodule Distributor do
   @top 3
   @bottom 0
 
-  # =========== GENSERVER =============
+  #=========== GENSERVER =============
 
   def init do #create the genserver with an empty list
     {:ok, _} = start([])
@@ -26,6 +26,10 @@ defmodule Distributor do
     GenServer.cast(:genserver, {:update_complete_list, new_elevator})
   end
 
+  def replace_elevator(new_elevator) do
+      CompleteSystem.elevator_by_pid(:replace, get_complete_list(), sender_pid, elevator)
+  end
+
   #============ CAST AND CALLS ===================
 
   def handle_call(:get_complete_list, _from, complete_list) do
@@ -38,7 +42,7 @@ defmodule Distributor do
 
   #============ MAILBOX ============
 
-  def tell(receiver_pid, message) do
+  def tell(receiver_pid, message) dogenserver
     IO.puts "[#{inspect self()}] Sending #{message} to #{inspect receiver_pid}" #logging
     send receiver_pid, {:ok, self(), message}
   end
@@ -59,17 +63,17 @@ defmodule Distributor do
   def update_system_list(sender_pid, state = %State{}) do #update state of elevator by pid
     elevator = CompleteSystem.elevator_by_pid(:find, get_complete_list(), sender_pid)
     %{elevator | state: state}
-    CompleteSystem.elevator_by_pid(:replace, get_complete_list(), sender_pid, elevator)
+    complete_system = CompleteSystem.elevator_by_pid(:replace, get_complete_list(), sender_pid, elevator)
     update_orders_completed(sender_pid, state)
   end
 
   def update_system_list(sender_pid, order = %Order{}) do #distribute order to elevator with minimum cost, now it just add order to same elevator
-    elevator = CompleteSystem.elevator_by_pid(:find, get_complete_list(), sender_pid)
-    %{elevator | orders: elevator.orders ++ order}
+    elevator_min_cost = compute_min_cost_all_elevators(get_complete_list())
+    orders = elevator.orders ++ [order]
     CompleteSystem.elevator_by_pid(:replace, get_complete_list(), sender_pid, elevator)
   end
 
-  def update_orders_completed(sender_pid, state, iterate \\ 0) do
+  def update_orders_completed(sender_pid, state, iterate \\ 0) do #check if new state of elevator is the same floor and direction as existing order
     elevator = CompleteSystem.elevator_by_pid(:find, get_complete_list(), sender_pid)
     orders = elevator.orders
     order = Enum.at(orders, iterate)
@@ -155,9 +159,18 @@ defmodule Distributor do
   end
 
   def compute_cost_all_orders(state, orders) do
-      cost_sum = []
-      Enum.map(orders, fn order ->  %Order{order | cost: order.cost + compute_cost_order(state, order)} end) |>
-      Enum.map(fn order -> cost_sum ++ order.cost end) |>
+      cost_list = []
+      orders |>
+      Enum.map(fn order ->  %Order{order | cost: order.cost + compute_cost_order(state, order)} end) |>
+      Enum.map(fn order -> cost_list ++ order.cost end) |>
       Enum.sum()
+  end
+
+  def compute_min_cost_all_elevators(complete_list) do
+      cost_list = []
+      cost_list = Enum.map(complete_list, fn elevator -> cost_list ++ compute_cost_all_orders(elevator.state, elevator.orders) end)
+      min_cost = Enum.min(cost_list)
+      index = Enum.find_index(cost_list, fn x -> x == min_cost end)
+      Enum.at(complete_list,index)
   end
 end

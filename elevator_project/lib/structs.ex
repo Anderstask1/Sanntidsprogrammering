@@ -89,8 +89,11 @@ defmodule CompleteSystem do
         # :delete -> List.delete_at(complete_list, index)
       end
     else
-      elevator_by_pid(key, complete_list, pid, index + 1, elevator_replace)
-    end
+      if Enum.length(complete_list) == index
+        :error
+      else
+        elevator_by_pid(key, complete_list, pid, index + 1, elevator_replace)
+      end
   end
 
 end
