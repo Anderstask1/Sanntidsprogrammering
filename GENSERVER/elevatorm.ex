@@ -5,44 +5,33 @@ defmodule Elevatorm do
 
 
 
-  def start_working(pid_distributor) do
+  def start_working do
     {:ok, pid_driver} = Driver.start()            #setup driver connection
     {:ok,  pid_FSM  } = ElevatorFSM.start_link()  #connect_FSM()
     go_to_know_state(pid_FSM, pid_driver)
     retrieve_local_backup(pid_FSM, pid_driver, self())
-    spawn fn -> receive_orders_loop(pid_distributor, pid_FSM, pid_driver) end
+    main_process= self()
+    pid_receive_loop = spawn fn -> receive_orders_loop(main_process, pid_FSM, pid_driver) end
+    loop_fake_distributor(pid_receive_loop)
   end
 
+  def loop_fake_distributor(pid_receive_loop) do
+    {order, _} = IO.gets("Enter floor order: ") |> Integer.parse
+    send pid_receive_loop, {:new_order, self(), order}
+    loop_fake_distributor(pid_receive_loop)
+  end
 
+  def receive_orders_loop(main_process,pid_FSM, pid_driver) do
 
-  def receive_orders_loop(pid_distributor, pid_FSM, pid_driver) do
     receive do
-
-      {:new_order, pid_sender, complete_system} ->
-
-        store_local_backup(complete_system)
-        {state,_floor,_movement}= ElevatorFSM.get_state(pid_FSM)
-
-        if state == :IDLE do
-          my_elevator = CompleteSystem.elevator_by_key(:find_ip, complete_system, get_my_local_ip())
-          if my_elevator.orders != [] do
-            order=List.first(my_elevator.orders).floor
-            spawn fn->elevator_loop(pid_FSM, pid_driver,pid_distributor, order) end
-          end
-        end
-
-        light_orders=my_elevator.lights
-        if light_orders != [] do
-          Enum.map(light_orders, fn x -> action_light(x, pid_driver) end)
-        end
-
+      {:new_order, pid_distributor, order} ->
+        store_local_backup(CreateList.init_list1(main_process,order))
+        spawn fn -> elevator_loop(pid_FSM, pid_driver, pid_distributor, order) end
       after
         9_000 -> IO.puts "No orders received after 9 seconds"
-
     end
     receive_orders_loop(main_process, pid_FSM, pid_driver)
   end
-
 
 
   def elevator_loop(pid_FSM, pid_driver, pid_distributor, order) do
@@ -170,11 +159,6 @@ defmodule Elevatorm do
     :erlang.list_to_pid('<#{string}>')
   end
 
-
-
-  def action_light(pid, light) do
-    Driver.set_order_button_light(pid, light.type, light.floor, light.state)
-  end
 
 
 end

@@ -80,20 +80,14 @@ defmodule CompleteSystem do
     #|> Enum.sort(complete_list)
   end
 
-  def elevator_by_pid(key, complete_list, pid,  elevator_replace \\ [], index \\ 0) do
+  def elevator_by_key(key, complete_list, id,  elevator_replace \\ [], index \\ 0) do
     elevator = Enum.at(complete_list, index)
-    if elevator != nil do
-      if elevator.pid == pid do
-        case key do
-          :find -> elevator
-          :replace -> List.replace_at(complete_list, index, elevator_replace)
-          # :delete -> List.delete_at(complete_list, index)
-        end
-      else
-          elevator_by_pid(key, complete_list, pid, elevator_replace, index + 1)
-      end
-    else
-      :error
+    cond do
+        elevator == nil -> :error
+        {id, key} == {elevator.pid, :find_pid} -> elevator
+        {id, key} == {elevator.ip, :find_ip} -> elevator
+        {id, key} == {elevator.pid, :replace} -> List.replace_at(complete_list, index, elevator_replace)
+        true -> elevator_by_key(key, complete_list, id, elevator_replace, index + 1)
     end
   end
 
@@ -193,15 +187,14 @@ defmodule CreateList do
     lights = [light1, light2, light3]
 
     ip2 = {10, 101, 23, 150}
-    pid2 = self()
+    pid2 = Pid.init(0,110,0)
 
     elevator2 = Elevator.init(ip2, pid2, state, orders, lights)
 
     CompleteSystem.init(elevator1, elevator2)
   end
 
-
-  def init_list1(pidse,floor) do
+  def init_list_due(myip) do
     state = State.init(:up, 0)
 
     order1 = Order.init(:cab, 1)
@@ -221,7 +214,7 @@ defmodule CreateList do
 
     elevator1 = Elevator.init(ip1, pid1, state, orders, lights)
 
-    state = State.init(:up, floor)
+    state = State.init(:up, 2)
 
     order1 = Order.init(:cab, 1)
     order2 = Order.init(:cab, 2)
@@ -235,8 +228,8 @@ defmodule CreateList do
     light3 = Light.init(:hall_down, 3, :on)
     lights = [light1, light2, light3]
 
-    ip2 = {10, 101, 23, 150}
-    pid2 = pidse
+    ip2 = myip
+    pid2 = Pid.init(0,110,0)
 
     elevator2 = Elevator.init(ip2, pid2, state, orders, lights)
 
