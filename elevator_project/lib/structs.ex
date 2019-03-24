@@ -80,16 +80,20 @@ defmodule CompleteSystem do
     #|> Enum.sort(complete_list)
   end
 
-  def elevator_by_pid(key, complete_list, pid, index \\ 0, elevator_replace \\ []) do
+  def elevator_by_pid(key, complete_list, pid,  elevator_replace \\ [], index \\ 0) do
     elevator = Enum.at(complete_list, index)
-    if elevator.pid == pid do
-      case key do
-        :find -> elevator
-        :replace -> List.replace_at(complete_list, index, elevator_replace)
-        # :delete -> List.delete_at(complete_list, index)
+    if elevator != nil do
+      if elevator.pid == pid do
+        case key do
+          :find -> elevator
+          :replace -> List.replace_at(complete_list, index, elevator_replace)
+          # :delete -> List.delete_at(complete_list, index)
+        end
+      else
+          elevator_by_pid(key, complete_list, pid, elevator_replace, index + 1)
       end
     else
-      elevator_by_pid(key, complete_list, pid, index + 1, elevator_replace)
+      :error
     end
   end
 
@@ -189,7 +193,50 @@ defmodule CreateList do
     lights = [light1, light2, light3]
 
     ip2 = {10, 101, 23, 150}
-    pid2 = Pid.init(0,110,0)
+    pid2 = self()
+
+    elevator2 = Elevator.init(ip2, pid2, state, orders, lights)
+
+    CompleteSystem.init(elevator1, elevator2)
+  end
+
+
+  def init_list1(pidse,floor) do
+    state = State.init(:up, 0)
+
+    order1 = Order.init(:cab, 1)
+    order2 = Order.init(:cab, 2)
+    order3 = Order.init(:hall_down, 3)
+    order4 = Order.init(:hall_up, 2)
+    order5 = Order.init(:hall_down, 2)
+    orders = [order1, order2, order3, order4, order5]
+
+    light1 = Light.init(:cab, 1, :on)
+    light2 = Light.init(:cab, 2, :on)
+    light3 = Light.init(:hall_up, 2, :on)
+    lights = [light1, light2, light3]
+
+    ip1 = {10, 100, 23, 151}
+    pid1 = Pid.init(0,109,0)
+
+    elevator1 = Elevator.init(ip1, pid1, state, orders, lights)
+
+    state = State.init(:up, floor)
+
+    order1 = Order.init(:cab, 1)
+    order2 = Order.init(:cab, 2)
+    order3 = Order.init(:hall_down, 3)
+    order4 = Order.init(:hall_up, 2)
+    order5 = Order.init(:hall_down, 2)
+    orders = [order1, order2, order3, order4, order5]
+
+    light1 = Light.init(:cab, 1, :on)
+    light2 = Light.init(:cab, 2, :on)
+    light3 = Light.init(:hall_down, 3, :on)
+    lights = [light1, light2, light3]
+
+    ip2 = {10, 101, 23, 150}
+    pid2 = pidse
 
     elevator2 = Elevator.init(ip2, pid2, state, orders, lights)
 
