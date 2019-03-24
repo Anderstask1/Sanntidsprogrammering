@@ -28,7 +28,7 @@ defmodule Distributor do
   end
 
   def find_elevator_in_complete_list(pid) do
-      #GenServer.cast(:genserver, {:find_elevator_in_complete_list, new_elevator})
+      GenServer.call(:genserver, {:find_elevator_in_complete_list, pid})
   end
 
   def replace_elevator(new_elevator, sender_pid) do
@@ -43,6 +43,10 @@ defmodule Distributor do
 
   def handle_cast({:update_complete_list, new_elevator}, complete_list) do
     {:noreply, complete_list ++ new_elevator}
+  end
+
+  def handle_call({:find_elevator_in_complete_list, pid}, _from, complete_list) do
+    {:reply, CompleteSystem.elevator_by_pid(:find, complete_list, pid), complete_list}
   end
 
   def handle_cast({:replace_elevator, new_elevator, sender_pid}, complete_list) do

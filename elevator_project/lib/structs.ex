@@ -89,11 +89,10 @@ defmodule CompleteSystem do
         # :delete -> List.delete_at(complete_list, index)
       end
     else
-      if length(complete_list) < index do
+        if elevator == nil do
+            :error
+        end
         elevator_by_pid(key, complete_list, pid, elevator_replace, index + 1)
-      else
-        :error
-      end
     end
   end
 
