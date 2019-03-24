@@ -9,12 +9,13 @@ defmodule Distributor do
   @bottom 0
 
   #=========== GENSERVER =============
+  #-------------API -----------------
 
   def init do #create the genserver with an empty list
-    {:ok, _} = start([])
+    {:ok, _} = start()
   end
 
-  def start(complete_list) do
+  def start do
     GenServer.start_link(__MODULE__, [], name: :genserver)
   end
 
@@ -26,23 +27,31 @@ defmodule Distributor do
     GenServer.cast(:genserver, {:update_complete_list, new_elevator})
   end
 
-  def replace_elevator(new_elevator) do
-      CompleteSystem.elevator_by_pid(:replace, get_complete_list(), sender_pid, elevator)
+  def find_elevator_in_complete_list() do
+
   end
 
-  #============ CAST AND CALLS ===================
+  def replace_elevator(new_elevator, sender_pid) do
+      GenServer.cast(:genserver, {:replace_elevator, new_elevator, sender_pid})
+  end
+
+  #-------------CAST AND CALLS -----------------
 
   def handle_call(:get_complete_list, _from, complete_list) do
     {:reply, complete_list, complete_list}
   end
 
   def handle_cast({:update_complete_list, new_elevator}, complete_list) do
-    {:noreply, complete_list ++ [new_elevator]}
+    {:noreply, complete_list ++ new_elevator}
+  end
+
+  def handle_cast({:replace_elevator, new_elevator, sender_pid}, complete_list) do
+    {:noreply, CompleteSystem.elevator_by_pid(:replace, complete_list, sender_pid, new_elevator)}
   end
 
   #============ MAILBOX ============
 
-  def tell(receiver_pid, message) dogenserver
+  def tell(receiver_pid, message) do
     IO.puts "[#{inspect self()}] Sending #{message} to #{inspect receiver_pid}" #logging
     send receiver_pid, {:ok, self(), message}
   end
@@ -69,8 +78,8 @@ defmodule Distributor do
 
   def update_system_list(sender_pid, order = %Order{}) do #distribute order to elevator with minimum cost, now it just add order to same elevator
     elevator_min_cost = compute_min_cost_all_elevators(get_complete_list())
-    orders = elevator.orders ++ [order]
-    CompleteSystem.elevator_by_pid(:replace, get_complete_list(), sender_pid, elevator)
+    orders = elevator_min_cost.orders ++ [order]
+    CompleteSystem.elevator_by_pid(:replace, get_complete_list(), sender_pid, elevator_min_cost)
   end
 
   def update_orders_completed(sender_pid, state, iterate \\ 0) do #check if new state of elevator is the same floor and direction as existing order
