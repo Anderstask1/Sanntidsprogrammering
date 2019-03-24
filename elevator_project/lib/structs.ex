@@ -80,14 +80,14 @@ defmodule CompleteSystem do
     #|> Enum.sort(complete_list)
   end
 
-  def elevator_by_pid(key, complete_list, id,  elevator_replace \\ [], index \\ 0) do
+  def elevator_by_key(key, complete_list, id,  elevator_replace \\ [], index \\ 0) do
     elevator = Enum.at(complete_list, index)
     cond do
         elevator == nil -> :error
-        {id, :find_pid} == {elevator.pid, :find_pid} -> elevator
-        {id, :find_ip} == {elevator.ip, :find_ip} -> elevator
-        {id, :replace} == {elevator.pid, :replace} -> List.replace_at(complete_list, index, elevator_replace)
-        true -> elevator_by_pid(key, complete_list, id, elevator_replace, index + 1)
+        {id, key} == {elevator.pid, :find_pid} -> elevator
+        {id, key} == {elevator.ip, :find_ip} -> elevator
+        {id, key} == {elevator.pid, :replace} -> List.replace_at(complete_list, index, elevator_replace)
+        true -> elevator_by_key(key, complete_list, id, elevator_replace, index + 1)
     end
   end
 
