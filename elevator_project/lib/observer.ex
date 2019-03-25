@@ -11,7 +11,7 @@ sorted by IP.
 
   def list_of_nodes do
     sorted_list = all_nodes |> Enum.sort
-    list_of_tuples = for each_node <- sorted_list, do: tuple = {to_string(each_node), self()}
+    list_of_tuples = for each_node <- sorted_list, do: tuple = {each_node, self()}
   end
 
 @doc """
