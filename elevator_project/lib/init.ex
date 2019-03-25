@@ -5,9 +5,6 @@ defmodule Init do
   config. This includes udp-broadcast to set up the cluster, spawning the modules and sending an empty
   list to all elevators.
   """
-  def ip_to_string ip do
-      :inet.ntoa(ip) |> to_string()
-    end
 
   def get_my_ip do
     {:ok, socket} = :gen_udp.open(6789, [active: false, broadcast: true])
@@ -20,6 +17,14 @@ defmodule Init do
     ip
   end
 
+  def ip_to_string ip do
+      :inet.ntoa(ip) |> to_string()
+  end
+
+  @doc """
+  initializes a node. Gives it a name and makes it search for other nodes while
+  it broadcasts itself.
+  """
   def init(tick_time \\ 15000) do
     ip = get_my_ip() |> ip_to_string()
     full_name = "heis" <> "@" <> ip
