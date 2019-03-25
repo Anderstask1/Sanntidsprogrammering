@@ -16,6 +16,10 @@ defmodule Distributor do
     {:ok, _} = start()
   end
 
+  def init(init_arg) do
+      {:ok, init_arg}
+  end
+
   def start do
     GenServer.start_link(__MODULE__, [], name: :genserver)
   end
@@ -24,12 +28,12 @@ defmodule Distributor do
     GenServer.call(:genserver, :get_complete_list)
   end
 
-  def update_complete_list(new_elevator) do
-    GenServer.cast(:genserver, {:update_complete_list, new_elevator})
-  end
-
   def find_elevator_in_complete_list(pid) do
     GenServer.call(:genserver, {:find_elevator_in_complete_list, pid})
+  end
+
+  def update_complete_list(new_elevator) do
+    GenServer.cast(:genserver, {:update_complete_list, new_elevator})
   end
 
   def replace_elevator(new_elevator, pid) do
@@ -46,12 +50,12 @@ defmodule Distributor do
     {:reply, complete_list, complete_list}
   end
 
-  def handle_cast({:update_complete_list, new_elevator}, complete_list) do
-    {:noreply, complete_list ++ new_elevator}
-  end
-
   def handle_call({:find_elevator_in_complete_list, pid}, _from, complete_list) do
     {:reply, CompleteSystem.elevator_by_key(:find_pid, complete_list, pid), complete_list}
+  end
+
+  def handle_cast({:update_complete_list, new_elevator}, complete_list) do
+    {:noreply, complete_list ++ new_elevator}
   end
 
   def handle_cast({:replace_elevator, new_elevator, pid}, complete_list) do
@@ -83,7 +87,8 @@ defmodule Distributor do
         IO.puts("[#{inspect(self())}] Received #{order} from #{inspect(sender_pid)}")
         update_system_list(sender_pid, order)
     after
-      1_000 -> "nothing received by distributor after 1 second"
+      1_000 ->
+        "nothing received by distributor after 1 second"
     end
 
     listen()
@@ -93,7 +98,7 @@ defmodule Distributor do
   def update_system_list(sender_pid, state = %State{}) do
     elevator = find_elevator_in_complete_list(sender_pid)
     %{elevator | state: state}
-    complete_system = replace_elevator(elevator, sender_pid)
+    replace_elevator(elevator, sender_pid)
     delete_orders_completed(sender_pid, state)
     broadcast_complete_list(get_complete_list())
   end
@@ -105,28 +110,32 @@ defmodule Distributor do
     elevator_min_cost =
       case order.type do
         :cab ->
-          elevator_min_cost = find_elevator_in_complete_list(sender_pid)
-          elevator_min_cost.lights ++ [light]
+          elevator = find_elevator_in_complete_list(sender_pid)
+          lights = elevator.lights ++ [light]
+          orders = elevator.orders ++ [order]
+          Elevator.init(elevator.ip, elevator.pid, elevator.state, orders, lights)
 
         _ ->
-          update_lights_list(get_complete_list(), light)
+          update_lights_list(:add, get_complete_list(), light)
           compute_min_cost_all_elevators(get_complete_list())
       end
-
-    elevator_min_cost.orders ++ [order]
     replace_elevator(elevator_min_cost, elevator_min_cost.pid)
     broadcast_complete_list(get_complete_list())
   end
 
-  def update_lights_list(complete_list, light, index \\ 0) do
+  def update_lights_list(key, complete_list, light, index \\ 0) do
     elevator = complete_list[index]
-    case elevator do
-      :nil -> :ok
-      _ ->
-        elevator.lights ++ [light]
+    case {elevator, key} do
+      {:nil, _} -> :ok
+      {_, :add} ->
+        elevator = Elevator.init(elevator.ip, elevator.pid, elevator.state, elevator.orders, elevator.lights ++ [light])
         replace_elevator(elevator, elevator.pid)
         update_lights_list(get_complete_list(), light, index + 1)
-      endelevato
+      {_, :delete} ->
+        elevator = Elevator.init(elevator.ip, elevator.pid, elevator.state, elevator.orders, elevator.lights -- [light])
+        replace_elevator(elevator, elevator.pid)
+        update_lights_list(get_complete_list(), light, index + 1)
+      end
   end
 
   # delete order if new state of elevator is the same floor and direction as existing order

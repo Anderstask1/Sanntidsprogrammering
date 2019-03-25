@@ -1,4 +1,4 @@
-defmodule Elevator do
+defmodule Elevatorm do
   # JMPT: I suggest using GenServer(Elixir Generic server) for the state machine
 
   @moduledoc """
@@ -36,15 +36,6 @@ defmodule Elevator do
   # def handle_obstruction(pid) do
   #
   # end
-
-  @doc """
-  this function says hello
-  """
-  def hello do
-    IO.puts("Hello brothers")
-    Distributor.hello()
-    :world
-  end
 
   @doc """
   this function controls a single elevator to go up to 3 floor and the down to 0
@@ -104,6 +95,6 @@ defmodule Elevator do
       message -> IO.puts("Server #{name} received #{message}")
     end
 
-    Elevator.server(name)
+    Elevatorm.server(name)
   end
 end
