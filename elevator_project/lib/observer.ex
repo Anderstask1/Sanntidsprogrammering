@@ -46,7 +46,7 @@ start_link(port) boots a server process
   The initialization runs inside the server process right after it boots
   """
     def init(port) do
-      {:ok, beaconSocket} = :gen_udp.open(port, [active: true, broadcast: true])
+      {:ok, beaconSocket} = :gen_udp.open(port, [active: false, broadcast: true])
       beacon(beaconSocket)
     end
 
