@@ -33,7 +33,7 @@ This module broadcasts a signal containing it self to other nodes on the same ne
   use GenServer
   @beacon_port 45678
   @radar_port 45679
-  
+
 @doc """
 start_link(port) boots a server process
 """
@@ -58,7 +58,7 @@ start_link(port) boots a server process
   """
     def beacon(beaconSocket) do
       :timer.sleep(1000 + :rand.uniform(500))
-      :ok = :gen_udp.send(beaconSocket, {10,22,77,37}, 45679, to_string(self()))
+      :ok = :gen_udp.send(beaconSocket, {255,255,255,255}, 45679, to_string(self()))
       beacon(beaconSocket)
     end
 end
