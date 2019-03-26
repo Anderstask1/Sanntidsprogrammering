@@ -3,10 +3,11 @@ defmodule DistributorTest do
   doctest Distributor
 
   test "distributor module test" do
-    pid_spwaned = spawn fn -> {:ok, pid_distributor} = Distributor.init end
-    IO.puts "PID DIST #{inspect pid_spwaned}"
+    pid_spawned_elevator = spawn fn -> Elevatorm.start_working() end
+    IO.puts "PID ELEV #{inspect pid_spawned_elevator}"
 
-    Elevatorm.start_working(pid_spwaned)
+    pid_spawned_distributor = spawn fn -> Distributor.start([pid_spawned_elevator]) end
+    IO.puts "PID DIST #{inspect pid_spawned_distributor}"
 
 
 

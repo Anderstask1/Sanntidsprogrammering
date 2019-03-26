@@ -3,26 +3,39 @@ defmodule Elevatorm do
   This is the Elevator module
   """
   def start_working do
+    IO.puts "I am listening with pid #{inspect self()}"
     receive do
-      {:empty_list, pid_distributor} ->
+      {:ok, pid_distributor, _} ->
         IO.puts "Empty list received from distributor #{inspect pid_distributor}"
+        {:ok, pid_driver} = Driver.start()            #setup driver connection
+        IO.puts "Driver connected"
+        {:ok,  pid_FSM  } = ElevatorFSM.start_link()  #connect_FSM()
+        IO.puts "FSM started"
+        go_to_know_state(pid_FSM, pid_driver, pid_distributor)
+        retrieve_local_backup(self(), pid_FSM, pid_driver, pid_distributor)
+        IO.puts "Spawn collectors"
+        pid_elevator= self();
+        pid_order_collector = spawn fn -> ElevatorFSM.order_collector(pid_elevator, pid_driver, pid_distributor) end
+        pid_floor_collector = spawn fn -> ElevatorFSM.floor_collector(pid_elevator, pid_driver, pid_distributor, pid_FSM) end
+        IO.puts "Entering receiving loop"
+        IO.puts "======================================"
+        IO.puts "DISTRIBUTOR   #{inspect pid_distributor}"
+        IO.puts "DRIVER        #{inspect pid_driver}"
+        IO.puts "FSM_ELEVATOR  #{inspect pid_FSM}"
+        IO.puts "ELEVATOR      #{inspect pid_elevator}"
+        IO.puts "ORDER COLLECTOR      #{inspect pid_order_collector}"
+        IO.puts "FLOOR COLLECTOR      #{inspect pid_floor_collector}"
+        IO.puts "======================================"
+        receive_orders_loop(pid_distributor, pid_FSM, pid_driver)
       message ->
         IO.puts "Error elevator module: unexpected message before initialization #{inspect message}"
     end
-    {:ok, pid_driver} = Driver.start()            #setup driver connection
-    {:ok,  pid_FSM  } = ElevatorFSM.start_link()  #connect_FSM()
-    go_to_know_state(pid_FSM, pid_driver, pid_distributor)
-    retrieve_local_backup(self(), pid_FSM, pid_driver, pid_distributor)
-    spawn fn -> ElevatorFSM.order_collector(self(), pid_driver, pid_distributor) end
-    spawn fn -> ElevatorFSM.floor_collector(self(), pid_driver, pid_distributor, pid_FSM) end
-    receive_orders_loop(pid_distributor, pid_FSM, pid_driver)
   end
 
 
 
   def receive_orders_loop(pid_distributor, pid_FSM, pid_driver) do
     receive do
-
       {:ok, pid_sender, complete_system} ->
 
         if pid_sender != pid_distributor do
@@ -86,14 +99,14 @@ defmodule Elevatorm do
     if Driver.get_floor_sensor_state(pid_driver) == :between_floors do
       {_state,_floor,movement}= ElevatorFSM.get_state(pid_FSM)
       if movement != :moving_down do
-        ElevatorFSM.set_status(pid_FSM, :MOVE ,:unspecified ,:moving_down, pid_distributor)
+        ElevatorFSM.set_status(pid_FSM, :MOVE ,:unspecified ,:moving_down)
         Driver.set_motor_direction(pid_driver, :down)
       end
       go_to_know_state(pid_FSM, pid_driver, pid_distributor)
     else
       Driver.set_motor_direction(pid_driver, :stop)
       floor = Driver.get_floor_sensor_state(pid_driver)
-      ElevatorFSM.set_status(pid_FSM, :IDLE ,floor ,:stopped, pid_distributor)
+      ElevatorFSM.set_status(pid_FSM, :IDLE ,floor ,:stopped)
       :ok
     end
   end
@@ -117,11 +130,10 @@ defmodule Elevatorm do
              if Driver.get_floor_sensor_state(pid_driver) != floor do
                IO.puts "Calling elevator loop with status: #{inspect ElevatorFSM.get_state(pid_FSM)}"
                IO.puts "for going to floor: #{inspect floor}"
-               sender=self()
                spawn fn -> elevator_loop(sender,pid_FSM, pid_driver, pid_distributor, floor) end
                :timer.sleep(9000);
              end
-             ElevatorFSM.set_status(pid_FSM, :IDLE ,floor ,:stopped,pid_distributor)
+             ElevatorFSM.set_status(pid_FSM, :IDLE ,floor ,:stopped)
              ElevatorFSM.send_status(pid_FSM, pid_distributor, self())
          end
        {:error, :enoent} -> :unspecified

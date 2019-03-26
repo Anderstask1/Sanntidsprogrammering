@@ -32,11 +32,6 @@ defmodule ElevatorFSM do
         :moving_up or :moving_down
   """
 
-<<<<<<< HEAD
-
-
-=======
->>>>>>> c8dc67e0945b8ad12b7778690a5bddef20db7ed3
   def start_link() do
     GenServer.start_link(ElevatorFSM, {:IDLE, :unknow_floor, :stopped})
   end
@@ -74,8 +69,8 @@ defmodule ElevatorFSM do
     GenServer.cast(pid_FSM, {:new_order, pid_driver, order})
   end
 
-  def set_status(pid_FSM, state, floor, movement, pid_distributor) do
-    GenServer.cast(pid_FSM, {:set_status, state, floor, movement, pid_distributor})
+  def set_status(pid_FSM, state, floor, movement) do
+    GenServer.cast(pid_FSM, {:set_status, state, floor, movement})
   end
 
   def send_status(pid_FSM, pid_distributor, sender) do
@@ -147,6 +142,7 @@ defmodule ElevatorFSM do
   end
 
   def handle_cast({:send_status, pid_distributor, sender}, {state, floor, movement}) do
+    IO.puts "Elevator #{sender} sending(via send_status) to distributor #{pid_distributor}   #{State.init(movement, floor)}"
     send(pid_distributor, {:status, sender, State.init(movement, floor)})
     {:noreply, {state, floor, movement}}
   end
@@ -214,6 +210,7 @@ defmodule ElevatorFSM do
   def send_buttons(pid_send, pid_distributor, button_type, floors, previous) do
     if length(floors) == 1 and floors != previous do
       Enum.map(floors, fn x ->
+        IO.puts "Elevator #{inspect pid_send} sending to distributor #{inspect pid_distributor}   #{inspect floors}"
         send(pid_distributor, {:order, pid_send, Order.init(button_type, x)})
       end)
     end
@@ -236,6 +233,7 @@ defmodule ElevatorFSM do
 
     if previous_floor != new_floor do
       {_state, _floor, movement} = get_state(pid_FSM)
+      IO.puts "Elevator #{sender} sending to distributor #{pid_distributor}   #{State.init(movement, new_floor)}"
       send(pid_distributor, {:status, sender, State.init(movement, new_floor)})
     end
 

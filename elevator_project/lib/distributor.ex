@@ -13,11 +13,13 @@ defmodule Distributor do
 
   # create the genserver with an empty list
   def start(list_of_pids) do
-    {:ok, _} = start()
-    complete_list = get_complete_list()
-    Enum.map(list_of_pids, fn pid -> complete_list ++ [Elevator.init(pid)] end) |>
+    IO.puts("DIST start pid: #{inspect self()}")
+    {:ok, pid_genserver} = start()
+    IO.puts("Pid genserver: #{inspect pid_genserver}")
+    Enum.map(list_of_pids, fn pid -> Elevator.init(pid) end) |>
     update_complete_list()
-    Enum.map(get_complete_list(), fn elevator -> broadcast_complete_list(elevator.pid) end)
+    get_complete_list() |>
+    Enum.map(fn elevator -> tell(elevator.pid, get_complete_list()) end)
     listen()
   end
 
@@ -49,36 +51,32 @@ defmodule Distributor do
     GenServer.cast(:genserver, {:replace_elevator_in_complete_list, new_elevator, pid})
   end
 
-  def broadcast_complete_list(pid) do
-    GenServer.cast(:genserver, {:broadcast_complete_list, pid})
-  end
-
   # -------------CAST AND CALLS -----------------
 
   def handle_call(:get_complete_list, _from, complete_list) do
+    IO.puts("get_complete_list #{inspect complete_list}")
     {:reply, complete_list, complete_list}
   end
 
   def handle_call({:get_elevator_in_complete_list, pid}, _from, complete_list) do
+    IO.puts("get_elevator_in_complete_list ")
     {:reply, Enum.find(complete_list, fn elevator -> elevator.pid == pid end), complete_list}
   end
 
   def handle_cast({:add_to_complete_list, new_elevator}, complete_list) do
+    IO.puts("add_to_complete_list")
     {:noreply, complete_list ++ new_elevator}
   end
 
   def handle_cast({:update_complete_list, new_list}, _) do
+    IO.puts("update_complete_list to #{inspect new_list}")
     {:noreply, new_list}
   end
 
   def handle_cast({:replace_elevator_in_complete_list, new_elevator, pid}, complete_list) do
+    IO.puts("replace_elevator_in_complete_list")
     index = Enum.find_index(complete_list, fn elevator -> elevator.pid == pid end)
     {:noreply, List.replace_at(complete_list, index, new_elevator)}
-  end
-
-  def handle_cast({:broadcast_complete_list, pid}, complete_list) do
-    tell(pid, complete_list)
-    {:noreply, :ok}
   end
 
   # ============ MAILBOX ============
@@ -87,7 +85,7 @@ defmodule Distributor do
   Send a mesage to the node with given pid
   """
   def tell(receiver_pid, message) do
-    IO.puts("[#{inspect(self())}] Sending #{message} to #{inspect(receiver_pid)}")
+    IO.puts("#{inspect self()} Sending to #{inspect receiver_pid}")
     send(receiver_pid, {:ok, self(), message})
   end
 
@@ -95,7 +93,7 @@ defmodule Distributor do
   Handle received messages from other nodes. Elevator modules send their states and orders to the master
   """
   def listen do
-    IO.puts("[#{inspect(self())}] is listening")
+    #IO.puts("[#{inspect(self())}] is listening")
 
     receive do
       {:state, sender_pid, state} ->
@@ -105,11 +103,11 @@ defmodule Distributor do
       {:order, sender_pid, order} ->
         IO.puts("[#{inspect(self())}] Received from #{inspect(sender_pid)}")
         update_system_list(sender_pid, order)
+      :error -> :error
     after
-      1_000 ->
-        "nothing received by distributor after 1 second"
+      3_000 ->
+        IO.puts("#{inspect self()} did not receive after 3 second")
     end
-
     listen()
   end
 
@@ -128,13 +126,12 @@ defmodule Distributor do
     Enum.map(elevator.orders, fn order ->
       if state.floor == order.floor and state.direction == :idle do
         light = Light.init(order.type, order.floor, :off)
-
-        %{elevator | orders: elevator.orders -- [order], lights: elevator.lights -- [light]}
-        |> replace_elevator_in_complete_list(sender_pid)
+        %{elevator | orders: elevator.orders -- [order], lights: elevator.lights -- [light]} |>
+        replace_elevator_in_complete_list(sender_pid)
       end
     end)
 
-    Enum.map(get_complete_list(), fn elevator -> broadcast_complete_list(elevator.pid) end)
+    Enum.map(get_complete_list(), fn elevator -> tell(elevator.pid, get_complete_list()) end)
   end
 
   @doc """
@@ -161,7 +158,7 @@ defmodule Distributor do
       end
 
     replace_elevator_in_complete_list(elevator_min_cost, elevator_min_cost.pid)
-    Enum.map(get_complete_list(), fn elevator -> broadcast_complete_list(elevator.pid) end)
+    Enum.map(get_complete_list(), fn elevator -> tell(elevator.pid, get_complete_list()) end)
   end
 
   # ============== COST COMPUTATION ===================
@@ -261,12 +258,8 @@ defmodule Distributor do
   end
 
   def compute_min_cost_all_elevators(complete_list) do
-    cost_list = []
-
     cost_list =
-      Enum.map(complete_list, fn elevator ->
-        cost_list ++ compute_cost_all_orders(elevator.state, elevator.orders)
-      end)
+      Enum.map(complete_list, fn elevator -> compute_cost_all_orders(elevator.state, elevator.orders) end)
 
     min_cost = Enum.min(cost_list)
     index = Enum.find_index(cost_list, fn x -> x == min_cost end)
