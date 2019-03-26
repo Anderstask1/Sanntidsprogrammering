@@ -8,10 +8,14 @@ Creates a list of tuples. Each tuple contains the name of a node, and its PID.
 All nodes in the cluster is included in the created list, and they are also
 sorted by IP.
 """
+  def get_full_name(ip) do
+    s_ip = ip |> ip_to_string()
+    full_name = "heis" <> "@" <> s_ip
+  end
 
   def list_of_nodes do
     sorted_list = all_nodes |> Enum.sort
-    list_of_tuples = for each_node <- sorted_list, do: tuple = {each_node, self()}
+    for each_node <- sorted_list, do: tuple = {each_node, self()}
   end
 
 @doc """
@@ -23,7 +27,6 @@ Returns all nodes in the cluster
       nodes -> nodes
     end
   end
-
 end
 
 defmodule Beacon do
@@ -58,7 +61,7 @@ start_link(port) boots a server process
   """
     def beacon(beaconSocket) do
       :timer.sleep(1000 + :rand.uniform(500))
-      :ok = :gen_udp.send(beaconSocket, {255,255,255,255}, 45679, to_string(Node.self()))
+      :ok = :gen_udp.send(beaconSocket, {10,100,23,180}, 45679, to_string(self())
       beacon(beaconSocket)
     end
 end
@@ -87,14 +90,13 @@ This module receives a signal from a node, and add that node to the cluster.
   @doc """
   radar(radarSocket) listen for messages sent to its socket.
   If it receive a message from a new node, it should add this node to the cluster.
-
+Node.ping String.to_atom(to_string(data))
   """
   def radar(radarSocket) do
     case :gen_udp.recv(radarSocket, 1000) do
-      {:ok, {_ip, _port, data}} -> Node.ping String.to_atom(to_string(data))
+      {:ok, {ip, _port, data}} -> Node.ping String.to_atom(get_full_name(ip))
       {:error, _} -> {:error, :could_not_receive}
     end
     radar(radarSocket)
   end
-
 end
