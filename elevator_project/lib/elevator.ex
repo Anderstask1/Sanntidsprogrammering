@@ -116,7 +116,7 @@ defmodule Elevatorm do
                :timer.sleep(9000);
              end
              ElevatorFSM.set_status(pid_FSM, :IDLE ,floor ,:stopped,pid_distributor)
-             ElevatorFSM.send_status(pid_FSM, pid_distributor, sender)
+             ElevatorFSM.send_status(pid_FSM, pid_distributor, self())
          end
        {:error, :enoent} -> :unspecified
      end
