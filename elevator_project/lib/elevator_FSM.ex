@@ -32,6 +32,11 @@ defmodule ElevatorFSM do
         :moving_up or :moving_down
   """
 
+<<<<<<< HEAD
+
+
+=======
+>>>>>>> c8dc67e0945b8ad12b7778690a5bddef20db7ed3
   def start_link() do
     GenServer.start_link(ElevatorFSM, {:IDLE, :unknow_floor, :stopped})
   end
@@ -137,8 +142,7 @@ defmodule ElevatorFSM do
     end
   end
 
-  def handle_cast({:set_status, state, floor, movement, pid_distributor}, _oldstate) do
-    send(pid_distributor, {:status, self(), State.init(movement, floor)})
+  def handle_cast({:set_status, state, floor, movement}, _oldstate) do
     {:noreply, {state, floor, movement}}
   end
 
