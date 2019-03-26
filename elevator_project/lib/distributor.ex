@@ -17,7 +17,7 @@ defmodule Distributor do
   end
 
   def init(init_arg) do
-      {:ok, init_arg}
+    {:ok, init_arg}
   end
 
   def start do
@@ -28,20 +28,24 @@ defmodule Distributor do
     GenServer.call(:genserver, :get_complete_list)
   end
 
-  def find_elevator_in_complete_list(pid) do
-    GenServer.call(:genserver, {:find_elevator_in_complete_list, pid})
+  def get_elevator_in_complete_list(pid) do
+    GenServer.call(:genserver, {:get_elevator_in_complete_list, pid})
   end
 
-  def update_complete_list(new_elevator) do
-    GenServer.cast(:genserver, {:update_complete_list, new_elevator})
+  def add_to_complete_list(new_elevator) do
+    GenServer.cast(:genserver, {:add_to_complete_list, new_elevator})
   end
 
-  def replace_elevator(new_elevator, pid) do
-    GenServer.cast(:genserver, {:replace_elevator, new_elevator, pid})
+  def update_complete_list(new_list) do
+    GenServer.cast(:genserver, {:update_complete_list, new_list})
   end
 
-  def broadcast_complete_list_to_elevator(pid) do
-    GenServer.cast(:genserver, {:broadcast_complete_list_to_elevator, pid})
+  def replace_elevator_in_complete_list(new_elevator, pid) do
+    GenServer.cast(:genserver, {:replace_elevator_in_complete_list, new_elevator, pid})
+  end
+
+  def broadcast_complete_list(pid) do
+    GenServer.cast(:genserver, {:broadcast_complete_list, pid})
   end
 
   # -------------CAST AND CALLS -----------------
@@ -50,19 +54,24 @@ defmodule Distributor do
     {:reply, complete_list, complete_list}
   end
 
-  def handle_call({:find_elevator_in_complete_list, pid}, _from, complete_list) do
-    {:reply, CompleteSystem.elevator_by_key(:find_pid, complete_list, pid), complete_list}
+  def handle_call({:get_elevator_in_complete_list, pid}, _from, complete_list) do
+    {:reply, Enum.find(complete_list, fn elevator -> elevator.pid == pid end), complete_list}
   end
 
-  def handle_cast({:update_complete_list, new_elevator}, complete_list) do
+  def handle_cast({:add_to_complete_list, new_elevator}, complete_list) do
     {:noreply, complete_list ++ new_elevator}
   end
 
-  def handle_cast({:replace_elevator, new_elevator, pid}, complete_list) do
-    {:noreply, CompleteSystem.elevator_by_key(:replace, complete_list, pid, new_elevator)}
+  def handle_cast({:update_complete_list, new_list}, _) do
+    {:noreply, new_list}
   end
 
-  def handle_cast({:broadcast_complete_list_to_elevator, pid}, complete_list) do
+  def handle_cast({:replace_elevator_in_complete_list, new_elevator, pid}, complete_list) do
+    index = Enum.find_index(complete_list, fn elevator -> elevator.pid == pid end)
+    {:noreply, List.replace_at(complete_list, index, new_elevator)}
+  end
+
+  def handle_cast({:broadcast_complete_list, pid}, complete_list) do
     tell(pid, complete_list)
     {:noreply, :ok}
   end
@@ -101,15 +110,21 @@ defmodule Distributor do
 
   @doc """
   Update state of elevator by pid. When receiving the state from an elevator module, the state in the stored
-  list is updated and completed orders are deleted. The lights is set to be turned off when an order is
-  completed.
+  list is updated and completed orders are deleted. Order is completed, and thus the order and light is
+  deleted if new state of elevator is the same floor and direction as existing order
   """
   def update_system_list(sender_pid, state = %State{}) do
-    elevator = find_elevator_in_complete_list(sender_pid)
-    %{elevator | state: state}
-    replace_elevator(elevator, sender_pid)
-    delete_orders_completed(sender_pid, state)
-    broadcast_complete_list(get_complete_list())
+    elevator = get_elevator_in_complete_list(sender_pid)
+    %{elevator | state: state} |>
+    replace_elevator_in_complete_list(sender_pid)
+    Enum.map(elevator.orders, fn order ->
+      if state.floor == order.floor and state.direction == :idle do
+        light = Light.init(order.type, order.floor, :off)
+        %{elevator | orders: elevator.orders -- [order], lights: elevator.lights -- [light]} |>
+        replace_elevator_in_complete_list(sender_pid)
+      end
+    end)
+    Enum.map(get_complete_list(), fn elevator -> broadcast_complete_list(elevator.pid) end)
   end
 
   @doc """
@@ -123,62 +138,20 @@ defmodule Distributor do
     elevator_min_cost =
       case order.type do
         :cab ->
-          elevator = find_elevator_in_complete_list(sender_pid)
-          lights = elevator.lights ++ [light]
-          orders = elevator.orders ++ [order]
-          Elevator.init(elevator.ip, elevator.pid, elevator.state, orders, lights)
+          elevator = get_elevator_in_complete_list(sender_pid)
+          %{elevator | orders: elevator.orders ++ [order], lights: elevator.lights ++ [light]}
 
         _ ->
-          update_lights_list(:add, get_complete_list(), light)
+          Enum.map(get_complete_list(), fn elevator ->
+            %{elevator | lights: elevator.lights ++ [light]}
+          end)
+          |> update_complete_list()
+
           compute_min_cost_all_elevators(get_complete_list())
       end
-    replace_elevator(elevator_min_cost, elevator_min_cost.pid)
-    broadcast_complete_list(get_complete_list())
-  end
 
-  def update_lights_list(key, complete_list, light, index \\ 0) do
-    elevator = complete_list[index]
-    case {elevator, key} do
-      {:nil, _} -> :ok
-      {_, :add} ->
-        elevator = %{elevator | lights: elevator.lights ++ [light]}
-        replace_elevator(elevator, elevator.pid)
-        update_lights_list(get_complete_list(), light, index + 1)
-      {_, :delete} ->
-        elevator = %{elevator | lights: elevator.lights -- [light]}
-        replace_elevator(elevator, elevator.pid)
-        update_lights_list(get_complete_list(), light, index + 1)
-      end
-  end
-
-  # delete order if new state of elevator is the same floor and direction as existing order
-  def delete_orders_completed(sender_pid, state, iterate \\ 0) do
-    elevator = find_elevator_in_complete_list(sender_pid)
-    orders = elevator.orders
-    order = Enum.at(orders, iterate)
-
-    if state.floor == order.floor and state.direction == :idle do
-      %{elevator | orders: List.delete_at(orders, iterate)}
-      # DELETE LIGHTS
-      replace_elevator(elevator, sender_pid)
-    end
-
-    if iterate < orders.length do
-      delete_orders_completed(sender_pid, state, iterate + 1)
-    end
-  end
-
-  def broadcast_complete_list(complete_list, index \\ 0) do
-    elevator = Enum.at(complete_list, index)
-
-    cond do
-      elevator == nil ->
-        :error
-
-      true ->
-        broadcast_complete_list_to_elevator(elevator.pid)
-        broadcast_complete_list(complete_list, index + 1)
-    end
+    replace_elevator_in_complete_list(elevator_min_cost, elevator_min_cost.pid)
+    Enum.map(get_complete_list(), fn elevator -> broadcast_complete_list(elevator.pid) end)
   end
 
   # ============== COST COMPUTATION ===================
@@ -266,7 +239,6 @@ defmodule Distributor do
     |> Enum.sum()
   end
 
-  # Use pipe operator to make prettier
   def compute_min_cost_all_elevators(complete_list) do
     cost_list = []
 
