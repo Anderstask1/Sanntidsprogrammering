@@ -69,12 +69,17 @@ defmodule Distributor do
 
   # ============ MAILBOX ============
 
+  @doc """
+  Send a mesage to the node with given pid
+  """
   def tell(receiver_pid, message) do
-    # logging
     IO.puts("[#{inspect(self())}] Sending #{message} to #{inspect(receiver_pid)}")
     send(receiver_pid, {:ok, self(), message})
   end
 
+  @doc """
+  Handle received messages from other nodes. Elevator modules send their states and orders to the master
+  """
   def listen do
     IO.puts("[#{inspect(self())}] is listening")
 
@@ -94,7 +99,11 @@ defmodule Distributor do
     listen()
   end
 
-  # update state of elevator by pid
+  @doc """
+  Update state of elevator by pid. When receiving the state from an elevator module, the state in the stored
+  list is updated and completed orders are deleted. The lights is set to be turned off when an order is
+  completed.
+  """
   def update_system_list(sender_pid, state = %State{}) do
     elevator = find_elevator_in_complete_list(sender_pid)
     %{elevator | state: state}
@@ -103,7 +112,11 @@ defmodule Distributor do
     broadcast_complete_list(get_complete_list())
   end
 
-  # distribute order to elevator with minimum cost
+  @doc """
+  Update orders and lights of elevators. When receiving an order from an elevator module, the order is
+  distributed to the elevator with minimum cost and added to the bottom of the orders list. Lights is
+  set to be turned on when an orders is distributed.
+  """
   def update_system_list(sender_pid, order = %Order{}) do
     light = Light.init(order.type, order.floor, :on)
 
@@ -128,11 +141,11 @@ defmodule Distributor do
     case {elevator, key} do
       {:nil, _} -> :ok
       {_, :add} ->
-        elevator = Elevator.init(elevator.ip, elevator.pid, elevator.state, elevator.orders, elevator.lights ++ [light])
+        elevator = %{elevator | lights: elevator.lights ++ [light]}
         replace_elevator(elevator, elevator.pid)
         update_lights_list(get_complete_list(), light, index + 1)
       {_, :delete} ->
-        elevator = Elevator.init(elevator.ip, elevator.pid, elevator.state, elevator.orders, elevator.lights -- [light])
+        elevator = %{elevator | lights: elevator.lights -- [light]}
         replace_elevator(elevator, elevator.pid)
         update_lights_list(get_complete_list(), light, index + 1)
       end
@@ -146,6 +159,7 @@ defmodule Distributor do
 
     if state.floor == order.floor and state.direction == :idle do
       %{elevator | orders: List.delete_at(orders, iterate)}
+      # DELETE LIGHTS
       replace_elevator(elevator, sender_pid)
     end
 
