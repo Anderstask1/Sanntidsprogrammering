@@ -32,8 +32,11 @@ defmodule ElevatorFSM do
         :moving_up or :moving_down
   """
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> c8dc67e0945b8ad12b7778690a5bddef20db7ed3
   def start_link() do
     GenServer.start_link(ElevatorFSM, {:IDLE, :unknow_floor, :stopped})
   end
@@ -218,7 +221,7 @@ defmodule ElevatorFSM do
     :ok
   end
 
-  def floor_collector(sender, pid_driver, pid_distributor,pid_FSM) do
+  def floor_collector(sender, pid_driver, pid_distributor, pid_FSM) do
     floor_collector(
       sender,
       pid_driver,
@@ -228,12 +231,14 @@ defmodule ElevatorFSM do
     )
   end
 
-  def floor_collector(sender, pid_driver, pid_distributor,pid_FSM , previous_floor) do
+  def floor_collector(sender, pid_driver, pid_distributor, pid_FSM, previous_floor) do
     new_floor = Driver.get_floor_sensor_state(pid_driver)
+
     if previous_floor != new_floor do
       {_state, _floor, movement} = get_state(pid_FSM)
       send(pid_distributor, {:status, sender, State.init(movement, new_floor)})
     end
-    floor_collector(sender, pid_driver, pid_distributor,pid_FSM , new_floor)
+
+    floor_collector(sender, pid_driver, pid_distributor, pid_FSM, new_floor)
   end
 end

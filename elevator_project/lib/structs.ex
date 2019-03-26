@@ -77,31 +77,6 @@ defmodule CompleteSystem do
     complete_list ++ [elevator]
     # |> Enum.sort(complete_list)
   end
-<<<<<<< HEAD
-  
-=======
-
-  def elevator_by_key(key, complete_list, id, elevator_replace \\ [], index \\ 0) do
-    elevator = Enum.at(complete_list, index)
-
-    cond do
-      elevator == nil ->
-        :error
-
-      {id, key} == {elevator.pid, :find_pid} ->
-        elevator
-
-      {id, key} == {elevator.ip, :find_ip} ->
-        elevator
-
-      {id, key} == {elevator.pid, :replace} ->
-        List.replace_at(complete_list, index, elevator_replace)
-
-      true ->
-        elevator_by_key(key, complete_list, id, elevator_replace, index + 1)
-    end
-  end
->>>>>>> elevator_module
 end
 
 defmodule Pid do
@@ -207,8 +182,6 @@ defmodule CreateList do
 
     CompleteSystem.init(elevator1, elevator2)
   end
-<<<<<<< HEAD
-=======
 
   def init_list_due(myip) do
     state = State.init(:up, 0)
@@ -251,5 +224,4 @@ defmodule CreateList do
 
     CompleteSystem.init(elevator1, elevator2)
   end
->>>>>>> elevator_module
 end
