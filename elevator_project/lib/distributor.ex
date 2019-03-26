@@ -1,5 +1,4 @@
 defmodule Distributor do
-
   @moduledoc """
   This is the distribitur module. The distributor is a part of the master, doing the computation
   of shortest-path and cost function, in order to distribute elevator orders. The distribitur in all
@@ -11,7 +10,7 @@ defmodule Distributor do
   """
 
   def hello do
-    IO.puts "Hello brothers and sisters"
+    IO.puts("Hello brothers and sisters")
     :world
   end
 
@@ -20,7 +19,7 @@ defmodule Distributor do
   """
 
   def holle do
-    IO.puts "Hello brothers and sisters"
+    IO.puts("Hello brothers and sisters")
     :world
   end
 end

@@ -2,15 +2,14 @@ defmodule Elevatorm do
   @moduledoc """
   This is the Elevator module
   """
-
-
-
   def start_working(pid_distributor) do
     {:ok, pid_driver} = Driver.start()            #setup driver connection
     {:ok,  pid_FSM  } = ElevatorFSM.start_link()  #connect_FSM()
-    go_to_know_state(pid_FSM, pid_driver)
-    retrieve_local_backup(pid_FSM, pid_driver, self())
-    spawn fn -> receive_orders_loop(pid_distributor, pid_FSM, pid_driver) end
+    go_to_know_state(pid_FSM, pid_driver, pid_distributor)
+    retrieve_local_backup(self(), pid_FSM, pid_driver, pid_distributor)
+    spawn fn -> ElevatorFSM.order_collector(self(), pid_driver, pid_distributor) end
+    spawn fn -> ElevatorFSM.floor_collector(self(), pid_driver, pid_distributor, pid_FSM) end
+    receive_orders_loop(pid_distributor, pid_FSM, pid_driver)
   end
 
 
@@ -18,16 +17,22 @@ defmodule Elevatorm do
   def receive_orders_loop(pid_distributor, pid_FSM, pid_driver) do
     receive do
 
-      {:new_order, pid_sender, complete_system} ->
+      {:ok, pid_sender, complete_system} ->
+
+        if pid_sender != pid_distributor do
+          IO.puts "I am receiving a complete_system from an unexpected distributor"
+        end
 
         store_local_backup(complete_system)
         {state,_floor,_movement}= ElevatorFSM.get_state(pid_FSM)
-
+        ip = get_my_local_ip()
+        my_elevator = Enum.find(complete_system, fn elevator -> elevator.ip == ip end)
         if state == :IDLE do
-          my_elevator = CompleteSystem.elevator_by_key(:find_ip, complete_system, get_my_local_ip())
           if my_elevator.orders != [] do
             order=List.first(my_elevator.orders).floor
-            spawn fn->elevator_loop(pid_FSM, pid_driver,pid_distributor, order) end
+            sender=self()
+            spawn fn->elevator_loop(sender,pid_FSM, pid_driver,pid_distributor, order) end
+            ElevatorFSM.send_status(pid_FSM, pid_distributor, self())
           end
         end
 
@@ -40,28 +45,27 @@ defmodule Elevatorm do
         9_000 -> IO.puts "No orders received after 9 seconds"
 
     end
-    receive_orders_loop(main_process, pid_FSM, pid_driver)
+    receive_orders_loop(pid_distributor, pid_FSM, pid_driver)
   end
 
 
 
-  def elevator_loop(pid_FSM, pid_driver, pid_distributor, order) do
+  def elevator_loop(sender,pid_FSM, pid_driver, pid_distributor, order) do
     ElevatorFSM.new_order(pid_FSM, pid_driver, order)
 
     {_state,current_floor,_movement} = ElevatorFSM.get_state(pid_FSM)
     if current_floor == order do
       ElevatorFSM.arrived(pid_FSM, pid_driver)
-      #send_distributor_status(pid_driver)
+      ElevatorFSM.send_status(pid_FSM, pid_distributor, sender)
       open_doors(pid_driver)
       ElevatorFSM.continue_working(pid_FSM)
-      #send_distributor_status(pid_driver)
+      ElevatorFSM.send_status(pid_FSM, pid_distributor, sender)
       :timer.sleep(100);
       Process.exit(self(), :kill)
     end
       ElevatorFSM.update_floor(pid_FSM, pid_driver)
-      #send_distributor_status(pid_driver)
       :timer.sleep(100);
-      elevator_loop(pid_FSM, pid_driver, pid_distributor, order)
+      elevator_loop(sender,pid_FSM, pid_driver, pid_distributor, order)
   end
 
 
@@ -72,18 +76,18 @@ defmodule Elevatorm do
     Moves the elevator to a known state in the case that the elevator is
     not exciting any floor sensor.
   """
-  def go_to_know_state(pid_FSM, pid_driver) do
+  def go_to_know_state(pid_FSM, pid_driver, pid_distributor) do
     if Driver.get_floor_sensor_state(pid_driver) == :between_floors do
       {_state,_floor,movement}= ElevatorFSM.get_state(pid_FSM)
       if movement != :moving_down do
-        ElevatorFSM.set_status(pid_FSM, :MOVE ,:unspecified ,:moving_down)
+        ElevatorFSM.set_status(pid_FSM, :MOVE ,:unspecified ,:moving_down, pid_distributor)
         Driver.set_motor_direction(pid_driver, :down)
       end
-      go_to_know_state(pid_FSM, pid_driver)
+      go_to_know_state(pid_FSM, pid_driver, pid_distributor)
     else
       Driver.set_motor_direction(pid_driver, :stop)
       floor = Driver.get_floor_sensor_state(pid_driver)
-      ElevatorFSM.set_status(pid_FSM, :IDLE ,floor ,:stopped)
+      ElevatorFSM.set_status(pid_FSM, :IDLE ,floor ,:stopped, pid_distributor)
       :ok
     end
   end
@@ -93,12 +97,13 @@ defmodule Elevatorm do
     previous status that was stored in the backup. It also send the backup file
     to the
   """
-  def retrieve_local_backup(pid_FSM, pid_driver, pid_distributor)  do
+  def retrieve_local_backup(sender, pid_FSM, pid_driver, pid_distributor)  do
      case File.read "local_backup" do
        {:ok, data} ->
          IO.puts "There is a backup avalieble"
          complete_system = :erlang.binary_to_term(data)
-         case CompleteSystem.elevator_by_key(:find_ip, complete_system, get_my_local_ip()) do
+         ip = get_my_local_ip()
+         case Enum.find(complete_system, fn elevator -> elevator.ip == ip end) do
            :error -> :ok
            elevator ->
              IO.puts "The previous status was: #{inspect elevator.state}"
@@ -106,14 +111,17 @@ defmodule Elevatorm do
              if Driver.get_floor_sensor_state(pid_driver) != floor do
                IO.puts "Calling elevator loop with status: #{inspect ElevatorFSM.get_state(pid_FSM)}"
                IO.puts "for going to floor: #{inspect floor}"
-               spawn fn -> elevator_loop(pid_FSM, pid_driver, pid_distributor, floor) end
+               sender=self()
+               spawn fn -> elevator_loop(sender,pid_FSM, pid_driver, pid_distributor, floor) end
                :timer.sleep(9000);
              end
-             ElevatorFSM.set_status(pid_FSM, :IDLE ,floor ,:stopped)
+             ElevatorFSM.set_status(pid_FSM, :IDLE ,floor ,:stopped,pid_distributor)
+             ElevatorFSM.send_status(pid_FSM, pid_distributor, sender)
          end
        {:error, :enoent} -> :unspecified
      end
   end
+
 
 
   def get_orders(_list) do
@@ -127,7 +135,6 @@ defmodule Elevatorm do
     after
       5_000 -> IO.puts "Notify observer"#notify_observer()
     end
-
   end
 
   @doc """
@@ -170,11 +177,7 @@ defmodule Elevatorm do
     :erlang.list_to_pid('<#{string}>')
   end
 
-
-
   def action_light(pid, light) do
     Driver.set_order_button_light(pid, light.type, light.floor, light.state)
   end
-
-
 end
