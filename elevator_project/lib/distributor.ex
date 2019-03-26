@@ -14,6 +14,7 @@ defmodule Distributor do
   # create the genserver with an empty list
   def init do
     {:ok, _} = start()
+    listen()
   end
 
   def init(init_arg) do
