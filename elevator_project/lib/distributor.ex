@@ -5,8 +5,8 @@ defmodule Distributor do
   nodes recieves the list of orders and states, but only the master distribitur distribute.
   """
   use GenServer
-  @top 3
   @bottom 0
+  @top 3
 
   # =========== GENSERVER =============
   # -------------API -----------------
@@ -80,11 +80,11 @@ defmodule Distributor do
 
     receive do
       {:state, sender_pid, state} ->
-        IO.puts("[#{inspect(self())}] Received {}from #{inspect(sender_pid)}")
+        IO.puts("[#{inspect(self())}] Received from #{inspect(sender_pid)}")
         update_system_list(sender_pid, state)
 
       {:order, sender_pid, order} ->
-        IO.puts("[#{inspect(self())}] Received #{order} from #{inspect(sender_pid)}")
+        IO.puts("[#{inspect(self())}] Received from #{inspect(sender_pid)}")
         update_system_list(sender_pid, order)
     after
       1_000 ->
