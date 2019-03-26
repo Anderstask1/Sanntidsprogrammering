@@ -2,7 +2,13 @@ defmodule Elevatorm do
   @moduledoc """
   This is the Elevator module
   """
-  def start_working(pid_distributor) do
+  def start_working do
+    receive do
+      {:empty_list, pid_distributor} ->
+        IO.puts "Empty list received from distributor #{inspect pid_distributor}"
+      message ->
+        IO.puts "Error elevator module: unexpected message before initialization #{inspect message}"
+    end
     {:ok, pid_driver} = Driver.start()            #setup driver connection
     {:ok,  pid_FSM  } = ElevatorFSM.start_link()  #connect_FSM()
     go_to_know_state(pid_FSM, pid_driver, pid_distributor)
