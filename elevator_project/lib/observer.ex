@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 defmodule NodeCollector do
 @moduledoc """
 This module contains functions for making a list of all nodes in a cluster.
@@ -73,15 +72,9 @@ start_link(port) boots a server process
   @doc """
   init(port) initialize the transmitter.
   The initialization runs inside the server process right after it boots
-=======
 defmodule Observer do
-  @moduledoc """
-  This is the observer module. The observer is doing the udp-broadcast,
-  adding new nodes to the clustera and keeping track of all active/alive nodes
->>>>>>> 994f0281aee22c142ee0bbe7c0a34dc57bf518ba
   """
     def init(port) do
-      IO.puts "init beacon"
       {:ok, beaconSocket} = :gen_udp.open(port, [active: false, broadcast: true])
       beacon(beaconSocket)
     end
@@ -94,7 +87,6 @@ defmodule Observer do
   10,22,77,209
   {inspect(self())}
   """
-<<<<<<< HEAD
     def beacon(beaconSocket) do
       :timer.sleep(1000 + :rand.uniform(500))
       :ok = :gen_udp.send(beaconSocket, {10,100,23,254}, 45679, "hei" )
@@ -174,10 +166,5 @@ defmodule List_name_pid do
 
   def handle_cast({:add_to_list, {name, pid}}, list) do
     {:noreply, list ++ [{name, pid}]}
-=======
-  def hello do
-    IO.puts("Hello brothers")
-    :world
->>>>>>> 994f0281aee22c142ee0bbe7c0a34dc57bf518ba
   end
 end
