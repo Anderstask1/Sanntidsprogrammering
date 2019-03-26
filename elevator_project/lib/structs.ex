@@ -77,7 +77,7 @@ defmodule CompleteSystem do
     complete_list ++ [elevator]
     # |> Enum.sort(complete_list)
   end
-  
+
 end
 
 defmodule Pid do
