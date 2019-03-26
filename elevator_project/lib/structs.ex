@@ -77,7 +77,6 @@ defmodule CompleteSystem do
     complete_list ++ [elevator]
     # |> Enum.sort(complete_list)
   end
-
 end
 
 defmodule Pid do
@@ -183,8 +182,6 @@ defmodule CreateList do
 
     CompleteSystem.init(elevator1, elevator2)
   end
-<<<<<<< HEAD
-=======
 
   def init_list_due(myip) do
     state = State.init(:up, 0)
@@ -227,5 +224,4 @@ defmodule CreateList do
 
     CompleteSystem.init(elevator1, elevator2)
   end
->>>>>>> elevator_module
 end
