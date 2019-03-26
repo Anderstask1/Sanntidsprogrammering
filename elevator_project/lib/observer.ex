@@ -22,6 +22,7 @@ sorted by IP.
     for each_node <- sorted_list, do: tuple = {each_node, self()}
   end
 
+
 @doc """
 Returns all nodes in the cluster
 """
@@ -31,6 +32,11 @@ Returns all nodes in the cluster
       nodes -> nodes
     end
   end
+
+  def node_in_list(node) do
+    Enum.member?(all_nodes, node)
+  end
+
 end
 
 defmodule Beacon do
@@ -62,10 +68,11 @@ start_link(port) boots a server process
   It sleep for a random amount of time, and then beacons out its own information.
   Then it recall itself
   Changed from Node.self()
+  10,22,77,209
   """
     def beacon(beaconSocket) do
       :timer.sleep(1000 + :rand.uniform(500))
-      :ok = :gen_udp.send(beaconSocket, {10,100,23,180}, 45679, to_string(self()))
+      :ok = :gen_udp.send(beaconSocket, {10,22,77,209}, 45679, "#{inspect(self())}")
       beacon(beaconSocket)
     end
 end
@@ -98,9 +105,49 @@ Node.ping String.to_atom(to_string(data))
   """
   def radar(radarSocket) do
     case :gen_udp.recv(radarSocket, 1000) do
-      {:ok, {ip, _port, data}} -> Node.ping String.to_atom(NodeCollector.get_full_name(ip))
+      {:ok, {ip, _port, data}} ->
+        name = String.to_atom(NodeCollector.get_full_name(ip))
+        Node.ping name
+        case NodeCollector.node_in_list(name) do
+        false -> List_name_pid.add_to_list({name, data})
+        end
       {:error, _} -> {:error, :could_not_receive}
     end
     radar(radarSocket)
+  end
+
+end
+
+defmodule List_name_pid do
+
+  # create the genserver with an empty list
+  def init do
+    {:ok, _} = start()
+  end
+
+  def init(init_arg) do
+    {:ok, init_arg}
+  end
+
+  def start do
+    GenServer.start_link(__MODULE__, [], name: :genserver)
+  end
+
+  def get_list do
+    GenServer.call(:genserver, :get_list)
+  end
+
+  def add_to_list({name, pid}) do
+    GenServer.cast(:genserver, {:add_to_list, {name, pid}})
+  end
+
+  # -------------CAST AND CALLS -----------------
+
+  def handle_call(:get_list, _from, list) do
+    {:reply, list, list}
+  end
+
+  def handle_cast({:add_to_list, {name, pid}}, list) do
+    {:noreply, list ++ [{name, pid}]}
   end
 end
