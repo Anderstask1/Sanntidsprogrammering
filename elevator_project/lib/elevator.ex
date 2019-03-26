@@ -14,17 +14,18 @@ defmodule Elevatorm do
         go_to_know_state(pid_FSM, pid_driver, pid_distributor)
         retrieve_local_backup(self(), pid_FSM, pid_driver, pid_distributor)
         IO.puts "Spawn collectors"
-        pid_elevator= self();
+        pid_elevator= self()
+        ElevatorFSM.send_status(pid_FSM, pid_distributor, pid_elevator)
         pid_order_collector = spawn fn -> ElevatorFSM.order_collector(pid_elevator, pid_driver, pid_distributor) end
         pid_floor_collector = spawn fn -> ElevatorFSM.floor_collector(pid_elevator, pid_driver, pid_distributor, pid_FSM) end
         IO.puts "Entering receiving loop"
         IO.puts "======================================"
-        IO.puts "DISTRIBUTOR   #{inspect pid_distributor}"
-        IO.puts "DRIVER        #{inspect pid_driver}"
-        IO.puts "FSM_ELEVATOR  #{inspect pid_FSM}"
-        IO.puts "ELEVATOR      #{inspect pid_elevator}"
-        IO.puts "ORDER COLLECTOR      #{inspect pid_order_collector}"
-        IO.puts "FLOOR COLLECTOR      #{inspect pid_floor_collector}"
+        IO.puts "DISTRIBUTOR      #{inspect pid_distributor}"
+        IO.puts "DRIVER           #{inspect pid_driver}"
+        IO.puts "FSM_ELEVATOR     #{inspect pid_FSM}"
+        IO.puts "ELEVATOR         #{inspect pid_elevator}"
+        IO.puts "ORDER COLLECTOR  #{inspect pid_order_collector}"
+        IO.puts "FLOOR COLLECTOR  #{inspect pid_floor_collector}"
         IO.puts "======================================"
         receive_orders_loop(pid_distributor, pid_FSM, pid_driver)
       message ->
@@ -37,7 +38,7 @@ defmodule Elevatorm do
   def receive_orders_loop(pid_distributor, pid_FSM, pid_driver) do
     receive do
       {:ok, pid_sender, complete_system} ->
-
+        IO.puts "Complete system received #{inspect complete_system}"
         if pid_sender != pid_distributor do
           IO.puts "I am receiving a complete_system from an unexpected distributor"
         end
@@ -57,6 +58,7 @@ defmodule Elevatorm do
 
         light_orders=my_elevator.lights
         if light_orders != [] do
+          IO.puts("----- HANDLE LIGHTS #{inspect light_orders}")
           Enum.map(light_orders, fn x -> action_light(x, pid_driver) end)
         end
 
@@ -98,15 +100,15 @@ defmodule Elevatorm do
   def go_to_know_state(pid_FSM, pid_driver, pid_distributor) do
     if Driver.get_floor_sensor_state(pid_driver) == :between_floors do
       {_state,_floor,movement}= ElevatorFSM.get_state(pid_FSM)
-      if movement != :moving_down do
-        ElevatorFSM.set_status(pid_FSM, :MOVE ,:unspecified ,:moving_down)
+      if movement != :down do
+        ElevatorFSM.set_status(pid_FSM, :MOVE ,:unspecified ,:down)
         Driver.set_motor_direction(pid_driver, :down)
       end
       go_to_know_state(pid_FSM, pid_driver, pid_distributor)
     else
       Driver.set_motor_direction(pid_driver, :stop)
       floor = Driver.get_floor_sensor_state(pid_driver)
-      ElevatorFSM.set_status(pid_FSM, :IDLE ,floor ,:stopped)
+      ElevatorFSM.set_status(pid_FSM, :IDLE ,floor ,:idle)
       :ok
     end
   end
@@ -119,7 +121,11 @@ defmodule Elevatorm do
   def retrieve_local_backup(sender, pid_FSM, pid_driver, pid_distributor)  do
      case File.read "local_backup" do
        {:ok, data} ->
-         IO.puts "There is a backup avalieble"
+         IO.puts "
+
+         There is a backup avalieble
+
+         "
          complete_system = :erlang.binary_to_term(data)
          ip = get_my_local_ip()
          case Enum.find(complete_system, fn elevator -> elevator.ip == ip end) do
@@ -133,11 +139,32 @@ defmodule Elevatorm do
                spawn fn -> elevator_loop(sender,pid_FSM, pid_driver, pid_distributor, floor) end
                :timer.sleep(9000);
              end
-             ElevatorFSM.set_status(pid_FSM, :IDLE ,floor ,:stopped)
+             ElevatorFSM.set_status(pid_FSM, :IDLE ,floor ,:idle)
              ElevatorFSM.send_status(pid_FSM, pid_distributor, self())
          end
-       {:error, :enoent} -> :unspecified
+       {:error, :enoent} ->
+         IO.puts "
+
+         There is no backup, lets create one
+
+         "
+         complete_system = CreateList.init_list_fake(get_my_local_ip(),self())
+         case Enum.find(complete_system, fn elevator -> elevator.ip == ip end) do
+           :error -> :ok
+           elevator ->
+             IO.puts "The previous status was: #{inspect elevator.state}"
+             floor = elevator.state.floor
+             if Driver.get_floor_sensor_state(pid_driver) != floor do
+               IO.puts "Calling elevator loop with status: #{inspect ElevatorFSM.get_state(pid_FSM)}"
+               IO.puts "for going to floor: #{inspect floor}"
+               spawn fn -> elevator_loop(sender,pid_FSM, pid_driver, pid_distributor, floor) end
+               :timer.sleep(9000);
+             end
+             ElevatorFSM.set_status(pid_FSM, :IDLE ,floor ,:idle)
+             ElevatorFSM.send_status(pid_FSM, pid_distributor, self())
+         end
      end
+
   end
 
 
@@ -192,10 +219,11 @@ defmodule Elevatorm do
   end
 
   def pid(string) when is_binary(string) do
-    :erlang.list_to_pid('<#{string}>')
+    :erlang.list_to_pid('<#{inspect string}>')
   end
 
-  def action_light(pid, light) do
+  def action_light(light, pid) do
+    IO.puts("Set light: #{inspect light}")
     Driver.set_order_button_light(pid, light.type, light.floor, light.state)
   end
 end
