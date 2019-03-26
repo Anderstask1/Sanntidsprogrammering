@@ -27,7 +27,7 @@ defmodule Init do
   """
   def init(tick_time \\ 15000) do
     ip = get_my_ip() |> ip_to_string()
-    full_name = "hei" <> "@" <> ip
+    full_name = "heis" <> "@" <> ip
     Node.start(String.to_atom(full_name), :longnames, tick_time)
     Node.set_cookie :hello
     #spawn fn -> List_name_pid.init end
