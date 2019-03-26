@@ -37,7 +37,6 @@ sorted by IP.
     send pid, {:ping, self()}
   end
 
-
 @doc """
 Returns all nodes in the cluster
 """
