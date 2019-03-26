@@ -8,6 +8,10 @@ Creates a list of tuples. Each tuple contains the name of a node, and its PID.
 All nodes in the cluster is included in the created list, and they are also
 sorted by IP.
 """
+  def ip_to_string ip do
+    :inet.ntoa(ip) |> to_string()
+  end
+
   def get_full_name(ip) do
     s_ip = ip |> ip_to_string()
     full_name = "heis" <> "@" <> s_ip
@@ -61,7 +65,7 @@ start_link(port) boots a server process
   """
     def beacon(beaconSocket) do
       :timer.sleep(1000 + :rand.uniform(500))
-      :ok = :gen_udp.send(beaconSocket, {10,100,23,180}, 45679, to_string(self())
+      :ok = :gen_udp.send(beaconSocket, {10,100,23,180}, 45679, to_string(self()))
       beacon(beaconSocket)
     end
 end
@@ -94,7 +98,7 @@ Node.ping String.to_atom(to_string(data))
   """
   def radar(radarSocket) do
     case :gen_udp.recv(radarSocket, 1000) do
-      {:ok, {ip, _port, data}} -> Node.ping String.to_atom(get_full_name(ip))
+      {:ok, {ip, _port, data}} -> Node.ping String.to_atom(NodeCollector.get_full_name(ip))
       {:error, _} -> {:error, :could_not_receive}
     end
     radar(radarSocket)
