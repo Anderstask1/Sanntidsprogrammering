@@ -7,7 +7,13 @@ This module contains functions for making a list of all nodes in a cluster.
 Creates a list of tuples. Each tuple contains the name of a node, and its PID.
 All nodes in the cluster is included in the created list, and they are also
 sorted by IP.
+
 """
+
+  def hello do
+    :world
+  end
+
   def ip_to_string ip do
     :inet.ntoa(ip) |> to_string()
   end
@@ -19,7 +25,16 @@ sorted by IP.
 
   def list_of_nodes do
     sorted_list = all_nodes |> Enum.sort
-    for each_node <- sorted_list, do: tuple = {each_node, self()}
+    for each_node <- sorted_list, do: tuple = {each_node, pid(each_node) |> elem(1) }
+  end
+
+  def pid(node) do
+    pid = Node.spawn_link node, fn ->
+      receive do
+        {:ping, client} -> send client, :pong
+      end
+    end
+    send pid, {:ping, self()}
   end
 
 
@@ -59,6 +74,7 @@ start_link(port) boots a server process
   The initialization runs inside the server process right after it boots
   """
     def init(port) do
+      IO.puts "init beacon"
       {:ok, beaconSocket} = :gen_udp.open(port, [active: false, broadcast: true])
       beacon(beaconSocket)
     end
@@ -69,10 +85,11 @@ start_link(port) boots a server process
   Then it recall itself
   Changed from Node.self()
   10,22,77,209
+  {inspect(self())}
   """
     def beacon(beaconSocket) do
       :timer.sleep(1000 + :rand.uniform(500))
-      :ok = :gen_udp.send(beaconSocket, {10,22,77,209}, 45679, "#{inspect(self())}")
+      :ok = :gen_udp.send(beaconSocket, {10,22,78,63}, 45679, "hei" )
       beacon(beaconSocket)
     end
 end
@@ -108,9 +125,9 @@ Node.ping String.to_atom(to_string(data))
       {:ok, {ip, _port, data}} ->
         name = String.to_atom(NodeCollector.get_full_name(ip))
         Node.ping name
-        case NodeCollector.node_in_list(name) do
-        false -> List_name_pid.add_to_list({name, data})
-        end
+        #case  not NodeCollector.node_in_list(name) do
+        #false -> List_name_pid.add_to_list({name, data})
+        #end
       {:error, _} -> {:error, :could_not_receive}
     end
     radar(radarSocket)
