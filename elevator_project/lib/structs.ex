@@ -78,35 +78,6 @@ defmodule CompleteSystem do
     # |> Enum.sort(complete_list)
   end
 
-  def elevator_by_key(key, complete_list, pid, elevator_replace \\ [], index \\ 0) do
-
-    #Enum.find(complete_list, fn elevator -> elevator.pid == pid end)
-    Enum.map(complete_list, fn elevator ->
-      if elevator.pid == pid do
-        complete_list -- elevator
-        complete_list ++ elevator_replace
-      end
-    end)
-
-    # elevator = Enum.at(complete_list, index)
-    #
-    # cond do
-    #   elevator == nil ->
-    #     :error
-    #
-    #   {id, key} == {elevator.pid, :find_pid} ->
-    #     elevator
-    #
-    #   {id, key} == {elevator.ip, :find_ip} ->
-    #     elevator
-    #
-    #   {id, key} == {elevator.pid, :replace} ->
-    #     List.replace_at(complete_list, index, elevator_replace)
-    #
-    #   true ->
-    #     elevator_by_key(key, complete_list, id, elevator_replace, index + 1)
-    # end
-  end
 end
 
 defmodule Pid do
