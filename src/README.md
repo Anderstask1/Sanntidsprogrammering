@@ -1,3 +1,0 @@
-# Requirements for the behaviour of the elevator
-
-...
