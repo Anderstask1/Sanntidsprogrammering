@@ -27,6 +27,7 @@ defmodule Elevator do
       if current_floor == order do
 
         ElevatorFSM.arrived(pid_FSM, pid_driver)
+        send_distributor_status(pid_driver)
         open_doors(pid_driver)
         ElevatorFSM.continue_working(pid_FSM)
         send_distributor_status(pid_driver)
@@ -34,8 +35,8 @@ defmodule Elevator do
         elevator_loop(pid_FSM, pid_driver, List.delete_at(list_of_orders,0))
 
       else
-
-        ElevatorFSM.new_order(pid_FSM, pid_driver, order)
+        #The next floor order is the same as  the current floor
+        # ElevatorFSM.new_order(pid_FSM, pid_driver, order)
 
       end
       ElevatorFSM.update_floor(pid_FSM, pid_driver)
@@ -54,7 +55,10 @@ defmodule Elevator do
 ###############################################################################
   def retrieve_local_backup()  do
     #TO DO: Complete the file management and retrieving of the backup
-    :unspecified
+     case File.read "local_backup" do
+       {:ok, complete_system} -> {:ok, :erlang.binary_to_term(complete_system)}
+       {:error, :enoent} -> :unspecified
+     end
   end
 
   def set_state(init_status, pid_FSM, pid_driver) do
@@ -76,17 +80,23 @@ defmodule Elevator do
     end
   end
 
-  def get_orders(list) do
+  def get_orders(_list) do
     #==========================================================================
     # TO DO: Handle the receive from the distributor keeping the complete
     # list of orders
+    receive do
+      {:complete_system, complete_system} ->
+      store_local_backup(complete_system)
+      List.first(complete_system).ip
+    after
+      5_000 -> IO.puts "Notify observer"#notify_observer()
+    end
 
-    get_orders(List.delete_at(list, 0))
   end
 
   def open_doors(pid_driver) do
     Driver.set_door_open_light(pid_driver, :on)
-    :timer.sleep(7000);
+    :timer.sleep(3000);
     Driver.set_door_open_light(pid_driver, :off)
   end
 
@@ -94,6 +104,21 @@ defmodule Elevator do
     #==========================================================================
     # TO DO: Send the status of elevator FSM and buttom pushes to distributor
     IO.puts "Sending status to distributor"
+  end
+
+  def store_local_backup(complete_system) do
+    # @doc """
+    #   This function stores the status of the complete system usinf the file
+    #   library
+    # """
+    {:ok, file} = File.open("local_backup", [:write])
+    IO.binwrite(file,:erlang.term_to_binary(complete_system))
+    File.close(file)
+  end
+
+  def get_my_ip do
+    {:ok, [{_noidea, _defini1, _mask1}, {ip, _defini, _mask2}]}= :inet.getif()
+    ip
   end
 
 end

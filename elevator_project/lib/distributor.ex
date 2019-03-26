@@ -181,11 +181,17 @@ defmodule Distributor do
     end
   end
 
+<<<<<<< HEAD
   @doc """
   Count the number of orders of a single elevator
   """
   def number_of_orders(orders) do
     length(orders)
+=======
+  def hello do
+    IO.puts("Hello brothers and sisters")
+    :world
+>>>>>>> elevator_module
   end
 
   @doc """
@@ -260,8 +266,14 @@ defmodule Distributor do
         cost_list ++ compute_cost_all_orders(elevator.state, elevator.orders)
       end)
 
+<<<<<<< HEAD
     min_cost = Enum.min(cost_list)
     index = Enum.find_index(cost_list, fn x -> x == min_cost end)
     Enum.at(complete_list, index)
+=======
+  def holle do
+    IO.puts("Hello brothers and sisters")
+    :world
+>>>>>>> elevator_module
   end
 end

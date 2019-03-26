@@ -1,6 +1,7 @@
 defmodule ElevatorFSM do
   use GenServer
 
+
   @moduledoc """
   This is the Finite State Machine module of the elevator. This keeps track of
   the state of the elevator cabin.
@@ -71,6 +72,9 @@ defmodule ElevatorFSM do
     GenServer.cast(pid_FSM, {:set_status,state,floor,movement})
   end
 
+  def send_status(pid_FSM, pid_distributor) do
+    GenServer.cast(pid_FSM, {:send_status,pid_distributor})
+  end
 
 
 #========== CAST AND CALLS ==========================
@@ -96,7 +100,7 @@ defmodule ElevatorFSM do
   def handle_cast({:update_floor, pid_driver},{state,floor,movement}) do
     new_floor = Driver.get_floor_sensor_state(pid_driver)
     if floor == :unknow_floor do
-      IO.puts "Unknown floor"
+      #IO.puts "Unknown floor"
     end
     if new_floor == :between_floors do
       {:noreply, {state, floor ,movement}}
@@ -122,11 +126,11 @@ defmodule ElevatorFSM do
     if state == :IDLE do
       if order > floor do
         Driver.set_motor_direction(pid_driver, :up)
-        IO.puts "Moving up"
+        #IO.puts "Moving up"
         {:noreply, {:MOVE,floor,:moving_up}}
       else
         Driver.set_motor_direction(pid_driver, :down)
-        IO.puts "Moving down"
+        #IO.puts "Moving down"
         {:noreply, {:MOVE,floor,:moving_down}}
       end
     else
@@ -134,10 +138,65 @@ defmodule ElevatorFSM do
     end
   end
 
-  def handle_cast({:set_status,state,floor,movement}, oldstate) do
-    IO.puts "The pre-init status was: #{inspect oldstate}"
+  def handle_cast({:set_status,state,floor,movement}, _oldstate) do
+    #IO.puts "The pre-init status was: #{inspect oldstate}"
     {:noreply, {state, floor ,movement}}
   end
 
 
+  def handle_cast({:send_status, pid_distributor}, {state, floor, movement}) do
+     send(pid_distributor, {:status, self(), State.init(movement, floor)})
+    {:noreply, {state, floor ,movement}}
+  end
+
+
+
+#===============================================================================
+#=================    ADITIONAL UTILITIES           ============================
+#===============================================================================
+
+  @doc """
+    This function runs the loop the recursive function order_collector/5 with an
+    empty previus orders.
+  """
+  def order_collector(pid_driver, pid_distributor) do
+    order_collector(pid_driver, pid_distributor,[],[],[])
+  end
+
+
+
+  @doc """
+    This function runs in loop indefinitely constantly asking to the Elevator
+    Driver if there is any buttom pushed. If so, the loop send the order to the
+    distributor using the function send_buttons/3.
+  """
+  def order_collector(pid_driver, pid_distributor, previous_cabs, previous_up, previous_down) do
+    cabs = Enum.filter(@bottom_floor..@top_floor, fn x -> Driver.get_order_button_state(pid_driver,x,:cab) == 1 end)
+    if cabs != [] do
+      send_buttons(pid_distributor, :cab, cabs, previous_cabs)
+    end
+    hall_up = Enum.filter(@bottom_floor..@top_floor, fn x -> Driver.get_order_button_state(pid_driver,x,:hall_up) == 1 end)
+    if hall_up != [] do
+      send_buttons(pid_distributor, :hall_up, hall_up, previous_up)
+    end
+    hall_down = Enum.filter(@bottom_floor..@top_floor, fn x -> Driver.get_order_button_state(pid_driver,x,:hall_down) == 1 end)
+    if hall_down != [] do
+      send_buttons(pid_distributor, :hall_down, hall_down, previous_down)
+    end
+    order_collector(pid_driver, pid_distributor, cabs, hall_up, hall_down)
+  end
+
+
+
+  @doc """
+    This function send to the distributor the buttoms that are pushed if the
+    buttoms are different from the previous pushes. This is done to avoid
+    sending redundant orders. Returns :ok when the send is completed.
+  """
+  def send_buttons(pid_distributor, button_type, floors, previous) do
+    if length(floors) == 1 and floors != previous do
+      Enum.map(floors, fn x -> send pid_distributor, {:order, self(),Order.init(button_type, x)} end )
+    end
+    :ok
+  end
 end
