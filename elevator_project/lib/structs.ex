@@ -62,9 +62,14 @@ end
 defmodule Elevator do
   defstruct [:ip, :pid, :state, :orders, :lights]
 
+  def init(pid) do
+    %Elevator{ip: nil, pid: pid, state: nil, orders: nil, lights: nil}
+  end
+
   def init(ip, pid, state = %State{}, orders, lights) do
     %Elevator{ip: ip, pid: pid, state: state, orders: orders, lights: lights}
   end
+
 end
 
 defmodule CompleteSystem do

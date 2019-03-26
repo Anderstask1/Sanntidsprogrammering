@@ -12,13 +12,17 @@ defmodule Distributor do
   # -------------API -----------------
 
   # create the genserver with an empty list
-  def init do
+  def start(list_of_pids) do
     {:ok, _} = start()
+    complete_list = get_complete_list()
+    Enum.map(list_of_pids, fn pid -> complete_list ++ [Elevator.init(pid)] end) |>
+    update_complete_list()
+    Enum.map(get_complete_list(), fn elevator -> broadcast_complete_list(elevator.pid) end)
     listen()
   end
 
-  def init(init_arg) do
-    {:ok, init_arg}
+  def init(list) do
+    {:ok, list}
   end
 
   def start do
