@@ -110,8 +110,9 @@ defmodule Distributor do
 
   @doc """
   Update state of elevator by pid. When receiving the state from an elevator module, the state in the stored
-  list is updated and completed orders are deleted. Order is completed, and thus the order and light is
-  deleted if new state of elevator is the same floor and direction as existing order
+  list is updated and completed orders are deleted. An order is completed if the new state of the elevator is
+  the same floor and direction as existing order. If an order is completed, then that order and the corresponding
+  light is deleted.
   """
   def update_system_list(sender_pid, state = %State{}) do
     elevator = get_elevator_in_complete_list(sender_pid)
@@ -157,7 +158,7 @@ defmodule Distributor do
   # ============== COST COMPUTATION ===================
 
   @doc """
-  this function converts the direction in atoms to an integer
+  Converts the direction in atoms to an integer
   """
   def direction_to_integer(state) do
     case state.direction do
@@ -168,6 +169,9 @@ defmodule Distributor do
     end
   end
 
+  @doc """
+  Converts the order type in atoms to an integer
+  """
   def direction_order_to_state(order) do
     case order.type do
       :cab -> :idle
@@ -177,19 +181,23 @@ defmodule Distributor do
   end
 
   @doc """
-  this function count the number of orders of a single elevator
+  Count the number of orders of a single elevator
   """
   def number_of_orders(orders) do
     length(orders)
   end
 
   @doc """
-  this function computes number of floors between a state and an order
+  Computes number of floors between a state and an order
   """
   def distance_between_orders(state, order) do
     abs(state.floor - order.floor)
   end
 
+  @doc """
+  Check if the state of the elevator and an order is at the same floor and
+  moving in the same direction
+  """
   def is_same_floor_same_direction(state, order) do
     case {state.direction, order.type} do
       {:down, :hall_down} -> state.floor == order.floor
@@ -198,6 +206,10 @@ defmodule Distributor do
     end
   end
 
+  @doc """
+  Simulate an elevator, computing number of steps from the state of the elevator to
+  the order. Fulfilled when state and order is the same floor and direction
+  """
   def simulate_elevator(duration, state, order) do
     cond do
       is_same_floor_same_direction(state, order) ->
