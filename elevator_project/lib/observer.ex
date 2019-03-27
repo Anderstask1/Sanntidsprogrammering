@@ -47,6 +47,8 @@ Returns all nodes in the cluster
     end
   end
 
+  def node_in_list({node, data}) do
+    Enum.member?(List_name_pid.get_list, {node, data})
   end
 
 end
@@ -86,7 +88,7 @@ defmodule Observer do
   """
     def beacon(beaconSocket) do
       :timer.sleep(1000 + :rand.uniform(500))
-      :ok = :gen_udp.send(beaconSocket, {10,22,78,63}, 45679, "#{inspect(self())}" )
+      :ok = :gen_udp.send(beaconSocket, {255,255,255,255}, 45679, "#{inspect(self())}" )
       beacon(beaconSocket)
     end
 end
@@ -123,6 +125,7 @@ Node.ping String.to_atom(to_string(data))
         IO.puts "received"
         name = String.to_atom(NodeCollector.get_full_name(ip))
         Node.ping name
+        case NodeCollector.node_in_list({name, data}) do
           false -> List_name_pid.add_to_list({name, data})
           true -> IO.puts "already in list"
         end
