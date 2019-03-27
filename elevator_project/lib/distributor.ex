@@ -8,20 +8,31 @@ defmodule Distributor do
   @bottom 0
   @top 3
 
+<<<<<<< HEAD
+  @doc """
+  Input is a list of tuples with the ip and pid of each node in the cluster.
+  Setup the genserver, create a list of elevators with the pid and ip in the input
+  and broadcast this list to all nodes.
+  """
+=======
   # =========== GENSERVER =============
   # -------------API -----------------
 
   # create the genserver with an empty list
-  def start(list_of_pids) do
+>>>>>>> 50d065a6f399a68064c2ffbf086742de88a555ab
+  def start(list_tuple_ips_pids) do
     IO.puts("DIST start pid: #{inspect self()}")
     {:ok, pid_genserver} = start()
     IO.puts("Pid genserver: #{inspect pid_genserver}")
-    Enum.map(list_of_pids, fn pid -> Elevator.init(pid) end) |>
+    Enum.map(list_tuple_ips_pids, fn {ip, pid} -> Elevator.init(ip, pid) end) |>
     update_complete_list()
     get_complete_list() |>
     Enum.map(fn elevator -> tell(elevator.pid, get_complete_list()) end)
     listen()
   end
+
+  # =========== GENSERVER =============
+  # -------------API -----------------
 
   def init(list) do
     {:ok, list}
@@ -74,7 +85,7 @@ defmodule Distributor do
   end
 
   def handle_cast({:replace_elevator_in_complete_list, new_elevator, pid}, complete_list) do
-    IO.puts("replace_elevator_in_complete_list")
+    IO.puts("replace_elevator_in_complete_list #{inspect complete_list}")
     index = Enum.find_index(complete_list, fn elevator -> elevator.pid == pid end)
     {:noreply, List.replace_at(complete_list, index, new_elevator)}
   end
@@ -85,7 +96,7 @@ defmodule Distributor do
   Send a mesage to the node with given pid
   """
   def tell(receiver_pid, message) do
-    IO.puts("#{inspect self()} Sending to #{inspect receiver_pid}")
+    IO.puts("DIST #{inspect self()} Sending to #{inspect receiver_pid}")
     send(receiver_pid, {:ok, self(), message})
   end
 
@@ -93,15 +104,14 @@ defmodule Distributor do
   Handle received messages from other nodes. Elevator modules send their states and orders to the master
   """
   def listen do
-    #IO.puts("[#{inspect(self())}] is listening")
 
     receive do
       {:state, sender_pid, state} ->
-        IO.puts("[#{inspect(self())}] Received from #{inspect(sender_pid)}")
+        IO.puts("DIST [#{inspect(self())}] Received the state #{inspect state} from #{inspect(sender_pid)}")
         update_system_list(sender_pid, state)
 
       {:order, sender_pid, order} ->
-        IO.puts("[#{inspect(self())}] Received from #{inspect(sender_pid)}")
+        IO.puts("DIST [#{inspect(self())}] Received from #{inspect(sender_pid)}")
         update_system_list(sender_pid, order)
       :error -> :error
     after
@@ -114,47 +124,63 @@ defmodule Distributor do
   @doc """
   Update state of elevator by pid. When receiving the state from an elevator module, the state in the stored
   list is updated and completed orders are deleted. An order is completed if the new state of the elevator is
-  the same floor and direction as existing order. If an order is completed, then that order and the corresponding
-  light is deleted.
+  at the same floor as an existing order and has stopped. The light is set to Off if it was turned on earlier,
+  or added to the light orders if not.
   """
   def update_system_list(sender_pid, state = %State{}) do
     elevator = get_elevator_in_complete_list(sender_pid)
-
     %{elevator | state: state}
     |> replace_elevator_in_complete_list(sender_pid)
-
     Enum.map(elevator.orders, fn order ->
       if state.floor == order.floor and state.direction == :idle do
-        light = Light.init(order.type, order.floor, :off)
-        %{elevator | orders: elevator.orders -- [order], lights: elevator.lights -- [light]} |>
+        lights = Enum.map(elevator.lights, fn light ->
+          if light.floor == order.floor do
+            %Light{light | state: :off}
+          else
+            light
+          end
+        end)
+        %{elevator | orders: elevator.orders -- [order], lights: lights} |>
         replace_elevator_in_complete_list(sender_pid)
       end
     end)
-
     Enum.map(get_complete_list(), fn elevator -> tell(elevator.pid, get_complete_list()) end)
   end
 
   @doc """
   Update orders and lights of elevators. When receiving an order from an elevator module, the order is
   distributed to the elevator with minimum cost and added to the bottom of the orders list. Lights is
-  set to be turned on when an orders is distributed.
+  set to be turned on when an orders is distributed, eighter by changing the same light order to Off
+  or adding it to light order list.
   """
   def update_system_list(sender_pid, order = %Order{}) do
-    light = Light.init(order.type, order.floor, :on)
-
+    new_light = Light.init(order.type, order.floor, :on)
+    IO.puts "Light on created"
     elevator_min_cost =
       case order.type do
         :cab ->
           elevator = get_elevator_in_complete_list(sender_pid)
-          %{elevator | orders: elevator.orders ++ [order], lights: elevator.lights ++ [light]}
-
+          if Enum.any?(elevator.lights, fn light -> light != new_light end) or elevator.lights == [] do
+            IO.puts("______CAB add light to list #{inspect new_light}")
+            %{elevator | orders: elevator.orders ++ [order], lights: elevator.lights ++ [new_light]}
+          else
+            IO.puts("______CAB light already in list #{inspect new_light}")
+            %{elevator | orders: elevator.orders ++ [order]}
+          end
         _ ->
           Enum.map(get_complete_list(), fn elevator ->
-            %{elevator | lights: elevator.lights ++ [light]}
-          end)
-          |> update_complete_list()
+            if Enum.any?(elevator.lights, fn light -> light != new_light end) or elevator.lights == [] do
+              IO.puts("_____add light to list #{inspect new_light}")
+              %{elevator |lights: elevator.lights ++ [new_light]}
+            else
+              IO.puts("_____light already in list #{inspect new_light}")
+              elevator
+            end
+          end) |>
+          update_complete_list()
 
-          compute_min_cost_all_elevators(get_complete_list())
+          elevator_min = compute_min_cost_all_elevators(get_complete_list())
+          %{elevator_min | orders: elevator_min.orders ++ [order]}
       end
 
     replace_elevator_in_complete_list(elevator_min_cost, elevator_min_cost.pid)
@@ -173,24 +199,6 @@ defmodule Distributor do
       :down -> -1
       _ -> :error
     end
-  end
-
-  @doc """
-  Converts the order type in atoms to an integer
-  """
-  def direction_order_to_state(order) do
-    case order.type do
-      :cab -> :idle
-      :hall_up -> :up
-      :hall_down -> :down
-    end
-  end
-
-  @doc """
-  Count the number of orders of a single elevator
-  """
-  def number_of_orders(orders) do
-    length(orders)
   end
 
   @doc """
