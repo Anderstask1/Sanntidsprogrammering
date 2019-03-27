@@ -15,7 +15,7 @@ defmodule Elevatorm do
         {:ok, pid_FSM} = ElevatorFSM.start_link()
         IO.puts("FSM started")
         go_to_know_state(pid_FSM, pid_driver, pid_distributor)
-        retrieve_local_backup(self(), pid_FSM, pid_driver, pid_distributor)
+        retrieve_local_backup(self(), pid_distributor)
         IO.puts("Spawn collectors")
         pid_elevator = self()
         ElevatorFSM.send_status(pid_FSM, pid_distributor, pid_elevator)
@@ -37,7 +37,8 @@ defmodule Elevatorm do
         IO.puts("ORDER COLLECTOR  #{inspect(pid_order_collector)}")
         IO.puts("FLOOR COLLECTOR  #{inspect(pid_floor_collector)}")
         IO.puts("======================================")
-        receive_orders_loop(pid_distributor, pid_FSM, pid_driver)
+        all_pids=[pid_order_collector,pid_floor_collector,pid_FSM, pid_driver]
+        receive_orders_loop(pid_distributor, pid_FSM, pid_driver, all_pids)
 
       message ->
         IO.puts(
@@ -46,8 +47,16 @@ defmodule Elevatorm do
     end
   end
 
-  def receive_orders_loop(pid_distributor, pid_FSM, pid_driver) do
+  def receive_orders_loop(pid_distributor, pid_FSM, pid_driver, all_pids) do
     receive do
+      {:ok, killer, :harakin} ->
+        if killer == pid_distributor do
+          Enum.map(all_pids, fn pid -> Process.exit(pid, :kill) end)
+          IO.puts "Bye ;( "
+          Process.exit(self(), :kill)
+        else
+          IO.puts "A process different to my distributor wants me to kill myself :(  "
+        end
       {:ok, pid_sender, complete_system} ->
         IO.puts("Complete system received #{inspect(complete_system)}")
 
@@ -79,7 +88,7 @@ defmodule Elevatorm do
       9_000 -> IO.puts("No orders received after 9 seconds")
     end
 
-    receive_orders_loop(pid_distributor, pid_FSM, pid_driver)
+    receive_orders_loop(pid_distributor, pid_FSM, pid_driver, all_pids)
   end
 
   def elevator_loop(sender, pid_FSM, pid_driver, pid_distributor, order) do
@@ -135,62 +144,7 @@ defmodule Elevatorm do
     previous status that was stored in the backup. It also send the backup file
     to the
   """
-<<<<<<< HEAD
-  def retrieve_local_backup(sender, pid_FSM, pid_driver, pid_distributor)  do
-     ip = get_my_local_ip()
-     case File.read "local_backup" do
-       {:ok, data} ->
-         IO.puts "
-
-         There is a backup avalieble
-
-         "
-         complete_system = :erlang.binary_to_term(data)
-         IO.puts "Complete system retrieved : #{inspect complete_system}"
-         IO.puts "Searching my IP #{inspect complete_system} in the complete system backup"
-         case Enum.find(complete_system, fn elevator -> elevator.ip == ip end) do
-           :error -> :ok
-           elevator ->
-             IO.puts "The previous status was: #{inspect elevator.state}"
-             floor = elevator.state.floor
-             if Driver.get_floor_sensor_state(pid_driver) != floor do
-               IO.puts "Calling elevator loop with status: #{inspect ElevatorFSM.get_state(pid_FSM)}"
-               IO.puts "for going to floor: #{inspect floor}"
-               spawn fn -> elevator_loop(sender,pid_FSM, pid_driver, pid_distributor, floor) end
-               :timer.sleep(9000);
-             end
-             ElevatorFSM.set_status(pid_FSM, :IDLE ,floor ,:idle)
-             ElevatorFSM.send_status(pid_FSM, pid_distributor, self())
-         end
-         :error ->
-         IO.puts "
-
-         There is no backup, lets create one
-
-         "
-         complete_system = CreateList.init_list_fake(get_my_local_ip(),self())
-         case Enum.find(complete_system, fn elevator -> elevator.ip == ip end) do
-           :error -> :ok
-           elevator ->
-             IO.puts "The previous status was: #{inspect elevator.state}"
-             floor = elevator.state.floor
-             if Driver.get_floor_sensor_state(pid_driver) != floor do
-               IO.puts "Calling elevator loop with status: #{inspect ElevatorFSM.get_state(pid_FSM)}"
-               IO.puts "for going to floor: #{inspect floor}"
-               spawn fn -> elevator_loop(sender,pid_FSM, pid_driver, pid_distributor, floor) end
-               :timer.sleep(9000);
-             end
-             ElevatorFSM.set_status(pid_FSM, :IDLE ,floor ,:idle)
-             ElevatorFSM.send_status(pid_FSM, pid_distributor, self())
-         end
-
-         unspected ->
-             IO.puts "Unespected search result : #{inspect unspected}"
-
-     end
-
-=======
-  def retrieve_local_backup(sender, pid_FSM, pid_driver, pid_distributor) do
+  def retrieve_local_backup(sender, pid_distributor) do
     case File.read("local_backup") do
       {:ok, data} ->
         IO.puts("
@@ -199,9 +153,11 @@ defmodule Elevatorm do
         £££££££££££££££££££££££££££££££££££££££££££££££££
          ")
         complete_system = :erlang.binary_to_term(data)
-        IO.puts("Complete system retrieved : #{inspect(complete_system)}")
-        IO.puts("Sending backup the complete system to the distributor")
-        send(pid_distributor, {:complete_list, sender, complete_system})
+        ip = get_my_local_ip()
+        my_elevator = Enum.find(complete_system, fn elevator -> elevator.ip == ip end)
+        IO.puts("My elevator system retrieved : #{inspect(complete_system)}")
+        IO.puts("Sending backup the elevator to the distributor")
+        send(pid_distributor, {:elevator_backup, sender, my_elevator})
 
       {:error, :enoent} ->
         IO.puts("
@@ -210,14 +166,15 @@ defmodule Elevatorm do
          ££££££££££££££££££££££££££££££££££££££££££££££££££
          ")
         complete_system = CreateList.init_list_fake(get_my_local_ip(), self())
-        IO.puts("Complete system retrieved : #{inspect(complete_system)}")
-        IO.puts("Sending backup the complete system to the distributor")
-        send(pid_distributor, {:complete_list, sender, complete_system})
+        ip = get_my_local_ip()
+        my_elevator = Enum.find(complete_system, fn elevator -> elevator.ip == ip end)
+        IO.puts("My elevator system retrieved : #{inspect(complete_system)}")
+        IO.puts("Sending backup the elevator to the distributor")
+        send(pid_distributor, {:elevator_backup, sender, my_elevator})
 
       unspected ->
         IO.puts("Unespected read result : #{inspect(unspected)}")
     end
->>>>>>> a731cbf498f183bc0fecbd0a761b65e3b483c26a
   end
 
   def get_orders(_list) do
