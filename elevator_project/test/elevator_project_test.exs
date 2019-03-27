@@ -3,16 +3,11 @@ defmodule DistributorTest do
   doctest Distributor
 
   test "distributor module test" do
-    pid_spawned_elevator = spawn fn -> Elevatorm.start_working() end
-    IO.puts "PID ELEV #{inspect pid_spawned_elevator}"
+    pid_spawned_elevator = spawn(fn -> Elevatorm.start_working() end)
+    IO.puts("PID ELEV #{inspect(pid_spawned_elevator)}")
 
-    pid_spawned_distributor = spawn fn -> Distributor.start([pid_spawned_elevator]) end
-    IO.puts "PID DIST #{inspect pid_spawned_distributor}"
-
-
-
-
-
+    pid_spawned_distributor = spawn(fn -> Distributor.start([pid_spawned_elevator]) end)
+    IO.puts("PID DIST #{inspect(pid_spawned_distributor)}")
 
     # ############ Init list #################
     #
@@ -413,7 +408,7 @@ defmodule DistributorTest do
     #
     # # Create another elevator with different parameters
     # state2 = State.init(:up, 2)
-    #rder2 = Order.init(:cab, 2)
+    # rder2 = Order.init(:cab, 2)
     # order3 = Order.init(:hall_down, 3)
     # order4 = Order.init(:hall_up, 2)
     # order5 = Order.init(:hall_down, 2)
@@ -445,7 +440,7 @@ defmodule DistributorTest do
     #
     # # Create another elevator with different parameters
     # state2 = State.init(:up, 2)
-    #rder2 = Order.init(:cab, 2)
+    # rder2 = Order.init(:cab, 2)
     # order3 = Order.init(:hall_down, 3)
     # order4 = Order.init(:hall_up, 2)
     # order5 = Order.init(:hall_down, 2)
@@ -510,7 +505,7 @@ defmodule DistributorTest do
     #
     # # Create another elevator with different parameters
     # state2 = State.init(:up, 2)
-    #rder2 = Order.init(:cab, 2)
+    # rder2 = Order.init(:cab, 2)
     # order3 = Order.init(:hall_down, 3)
     # order4 = Order.init(:hall_up, 2)
     # order5 = Order.init(:hall_down, 2)

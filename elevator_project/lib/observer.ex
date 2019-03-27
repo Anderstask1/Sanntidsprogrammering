@@ -1,20 +1,20 @@
 defmodule NodeCollector do
-@moduledoc """
-This module contains functions for making a list of all nodes in a cluster.
-"""
+  @moduledoc """
+  This module contains functions for making a list of all nodes in a cluster.
+  """
 
-@doc """
-Creates a list of tuples. Each tuple contains the name of a node, and its PID.
-All nodes in the cluster is included in the created list, and they are also
-sorted by IP.
+  @doc """
+  Creates a list of tuples. Each tuple contains the name of a node, and its PID.
+  All nodes in the cluster is included in the created list, and they are also
+  sorted by IP.
 
-"""
+  """
 
   def hello do
     :world
   end
 
-  def ip_to_string ip do
+  def ip_to_string(ip) do
     :inet.ntoa(ip) |> to_string()
   end
 
@@ -24,46 +24,47 @@ sorted by IP.
   end
 
   def list_of_nodes do
-    sorted_list = all_nodes |> Enum.sort
-    for each_node <- sorted_list, do: tuple = {each_node, pid(each_node) |> elem(1) }
+    sorted_list = all_nodes |> Enum.sort()
+    for each_node <- sorted_list, do: tuple = {each_node, pid(each_node) |> elem(1)}
   end
 
   def pid(node) do
-    pid = Node.spawn_link node, fn ->
-      receive do
-        {:ping, client} -> send client, :pong
-      end
-    end
-    send pid, {:ping, self()}
+    pid =
+      Node.spawn_link(node, fn ->
+        receive do
+          {:ping, client} -> send(client, :pong)
+        end
+      end)
+
+    send(pid, {:ping, self()})
   end
 
-@doc """
-Returns all nodes in the cluster
-"""
+  @doc """
+  Returns all nodes in the cluster
+  """
   def all_nodes do
-    case [Node.self | Node.list] do
-      [:'nonode@nohost'] -> {:error, :node_not_running}
+    case [Node.self() | Node.list()] do
+      [:nonode@nohost] -> {:error, :node_not_running}
       nodes -> nodes
     end
   end
 
   def node_in_list({node, data}) do
-    Enum.member?(List_name_pid.get_list, {node, data})
+    Enum.member?(List_name_pid.get_list(), {node, data})
   end
-
 end
 
 defmodule Beacon do
-@moduledoc """
-This module broadcasts a signal containing it self to other nodes on the same network.
-"""
+  @moduledoc """
+  This module broadcasts a signal containing it self to other nodes on the same network.
+  """
   use GenServer
   @beacon_port 45678
   @radar_port 45679
 
-@doc """
-start_link(port) boots a server process
-"""
+  @doc """
+  start_link(port) boots a server process
+  """
   def start_link(port \\ 45678) do
     GenServer.start_link(__MODULE__, port)
   end
@@ -71,12 +72,12 @@ start_link(port) boots a server process
   @doc """
   init(port) initialize the transmitter.
   The initialization runs inside the server process right after it boots
-defmodule Observer do
+  defmodule Observer do
   """
-    def init(port) do
-      {:ok, beaconSocket} = :gen_udp.open(port, [active: false, broadcast: true])
-      beacon(beaconSocket)
-    end
+  def init(port) do
+    {:ok, beaconSocket} = :gen_udp.open(port, active: false, broadcast: true)
+    beacon(beaconSocket)
+  end
 
   @doc """
   beacon(beaconSocket) takes in a socket number.
@@ -86,17 +87,17 @@ defmodule Observer do
   10,22,77,209
   {inspect(self())}
   """
-    def beacon(beaconSocket) do
-      :timer.sleep(1000 + :rand.uniform(500))
-      :ok = :gen_udp.send(beaconSocket, {255,255,255,255}, 45679, "#{inspect(self())}" )
-      beacon(beaconSocket)
-    end
+  def beacon(beaconSocket) do
+    :timer.sleep(1000 + :rand.uniform(500))
+    :ok = :gen_udp.send(beaconSocket, {10, 100, 23, 242}, 45679, "#{inspect(self())}")
+    beacon(beaconSocket)
+  end
 end
 
 defmodule Radar do
-@moduledoc """
-This module receives a signal from a node, and add that node to the cluster.
-"""
+  @moduledoc """
+  This module receives a signal from a node, and add that node to the cluster.
+  """
   use GenServer
   @radar_port 45679
   @doc """
@@ -110,34 +111,36 @@ This module receives a signal from a node, and add that node to the cluster.
   radar() initialize the reciever.
   """
   def init(port) do
-    {:ok, radarSocket} = :gen_udp.open(port, [active: false, broadcast: true])
+    {:ok, radarSocket} = :gen_udp.open(port, active: false, broadcast: true)
     radar(radarSocket)
   end
 
   @doc """
   radar(radarSocket) listen for messages sent to its socket.
   If it receive a message from a new node, it should add this node to the cluster.
-Node.ping String.to_atom(to_string(data))
+  Node.ping String.to_atom(to_string(data))
   """
   def radar(radarSocket) do
     case :gen_udp.recv(radarSocket, 1000) do
       {:ok, {ip, _port, data}} ->
-        IO.puts "received"
+        IO.puts("received")
         name = String.to_atom(NodeCollector.get_full_name(ip))
-        Node.ping name
+        Node.ping(name)
+
         case NodeCollector.node_in_list({name, data}) do
           false -> List_name_pid.add_to_list({name, data})
-          true -> IO.puts "already in list"
+          true -> IO.puts("already in list")
         end
-      {:error, _} -> {:error, :could_not_receive}
+
+      {:error, _} ->
+        {:error, :could_not_receive}
     end
+
     radar(radarSocket)
   end
-
 end
 
 defmodule List_name_pid do
-
   # create the genserver with an empty list
   def init do
     {:ok, _} = start()

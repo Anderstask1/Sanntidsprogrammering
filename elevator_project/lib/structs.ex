@@ -69,7 +69,6 @@ defmodule Elevator do
   def init(ip, pid, state = %State{}, orders, lights) do
     %Elevator{ip: ip, pid: pid, state: state, orders: orders, lights: lights}
   end
-
 end
 
 defmodule CompleteSystem do
@@ -188,7 +187,7 @@ defmodule CreateList do
     CompleteSystem.init(elevator1, elevator2)
   end
 
-  def init_list_fake(myip,mypid) do
+  def init_list_fake(myip, mypid) do
     state = State.init(:idle, 0)
     orders = []
 
@@ -203,13 +202,13 @@ defmodule CreateList do
     light9 = Light.init(:hall_down, 2, :off)
     light10 = Light.init(:hall_down, 3, :off)
 
-    lights = [light1, light2, light3 , light4, light5, light6, light7, light8, light9, light10]
+    lights = [light1, light2, light3, light4, light5, light6, light7, light8, light9, light10]
 
-    ip1 = mypi
+    ip1 = myip
     pid1 = mypid
 
     elevator1 = Elevator.init(ip1, pid1, state, orders, lights)
-    CompleteSystem.init(elevator1)
+    [elevator1]
   end
 
   def init_list_due(myip) do
