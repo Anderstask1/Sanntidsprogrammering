@@ -8,6 +8,11 @@ defmodule Distributor do
   @bottom 0
   @top 3
 
+  @doc """
+  Input is a list of tuples with the ip and pid of each node in the cluster.
+  Setup the genserver, create a list of elevators with the pid and ip in the input
+  and broadcast this list to all nodes.
+  """
   # =========== GENSERVER =============
   # -------------API -----------------
 
@@ -22,6 +27,9 @@ defmodule Distributor do
     Enum.map(fn elevator -> tell(elevator.pid, get_complete_list()) end)
     listen()
   end
+
+  # =========== GENSERVER =============
+  # -------------API -----------------
 
   def init(list) do
     {:ok, list}
@@ -93,7 +101,6 @@ defmodule Distributor do
   Handle received messages from other nodes. Elevator modules send their states and orders to the master
   """
   def listen do
-    #IO.puts("[#{inspect(self())}] is listening")
 
     receive do
       {:state, sender_pid, state} ->
@@ -114,8 +121,8 @@ defmodule Distributor do
   @doc """
   Update state of elevator by pid. When receiving the state from an elevator module, the state in the stored
   list is updated and completed orders are deleted. An order is completed if the new state of the elevator is
-  the same floor and direction as existing order. If an order is completed, then that order and the corresponding
-  light is deleted.
+  at the same floor as an existing order and has stopped. The light is set to Off if it was turned on earlier,
+  or added to the light orders if not.
   """
   def update_system_list(sender_pid, state = %State{}) do
     elevator = get_elevator_in_complete_list(sender_pid)
@@ -140,7 +147,8 @@ defmodule Distributor do
   @doc """
   Update orders and lights of elevators. When receiving an order from an elevator module, the order is
   distributed to the elevator with minimum cost and added to the bottom of the orders list. Lights is
-  set to be turned on when an orders is distributed.
+  set to be turned on when an orders is distributed, eighter by changing the same light order to Off
+  or adding it to light order list.
   """
   def update_system_list(sender_pid, order = %Order{}) do
     new_light = Light.init(order.type, order.floor, :on)
@@ -188,24 +196,6 @@ defmodule Distributor do
       :down -> -1
       _ -> :error
     end
-  end
-
-  @doc """
-  Converts the order type in atoms to an integer
-  """
-  def direction_order_to_state(order) do
-    case order.type do
-      :cab -> :idle
-      :hall_up -> :up
-      :hall_down -> :down
-    end
-  end
-
-  @doc """
-  Count the number of orders of a single elevator
-  """
-  def number_of_orders(orders) do
-    length(orders)
   end
 
   @doc """

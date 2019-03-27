@@ -119,6 +119,7 @@ defmodule Elevatorm do
     to the
   """
   def retrieve_local_backup(sender, pid_FSM, pid_driver, pid_distributor)  do
+     ip = get_my_local_ip()
      case File.read "local_backup" do
        {:ok, data} ->
          IO.puts "
@@ -127,7 +128,8 @@ defmodule Elevatorm do
 
          "
          complete_system = :erlang.binary_to_term(data)
-         ip = get_my_local_ip()
+         IO.puts "Complete system retrieved : #{inspect complete_system}"
+         IO.puts "Searching my IP #{inspect complete_system} in the complete system backup"
          case Enum.find(complete_system, fn elevator -> elevator.ip == ip end) do
            :error -> :ok
            elevator ->
@@ -142,7 +144,7 @@ defmodule Elevatorm do
              ElevatorFSM.set_status(pid_FSM, :IDLE ,floor ,:idle)
              ElevatorFSM.send_status(pid_FSM, pid_distributor, self())
          end
-       {:error, :enoent} ->
+         :error ->
          IO.puts "
 
          There is no backup, lets create one
@@ -163,6 +165,10 @@ defmodule Elevatorm do
              ElevatorFSM.set_status(pid_FSM, :IDLE ,floor ,:idle)
              ElevatorFSM.send_status(pid_FSM, pid_distributor, self())
          end
+
+         unspected ->
+             IO.puts "Unespected search result : #{inspect unspected}"
+
      end
 
   end
