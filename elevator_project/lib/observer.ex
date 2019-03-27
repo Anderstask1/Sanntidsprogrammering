@@ -88,7 +88,7 @@ defmodule Observer do
   """
     def beacon(beaconSocket) do
       :timer.sleep(1000 + :rand.uniform(500))
-      :ok = :gen_udp.send(beaconSocket, {10,100,23,242}, 45679, "#{inspect(self())}" )
+      :ok = :gen_udp.send(beaconSocket, {255,255,255,255}, 45679, "#{inspect(self())}" )
       beacon(beaconSocket)
     end
 end
