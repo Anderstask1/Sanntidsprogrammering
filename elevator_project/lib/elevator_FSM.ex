@@ -249,7 +249,7 @@ defmodule ElevatorFSM do
 
   def floor_collector(sender, pid_driver, pid_distributor, pid_FSM, previous_floor) do
     new_floor = Driver.get_floor_sensor_state(pid_driver)
-
+    :timer.sleep(5_000)
     if previous_floor != new_floor and new_floor != :between_floors do
       {_state, _floor, movement} = get_state(pid_FSM)
 

@@ -15,7 +15,7 @@ defmodule Elevatorm do
         {:ok, pid_FSM} = ElevatorFSM.start_link()
         IO.puts("FSM started")
         go_to_know_state(pid_FSM, pid_driver, pid_distributor)
-        retrieve_local_backup(self(), pid_FSM, pid_driver, pid_distributor)
+        retrieve_local_backup(self(), pid_FSM, pid_distributor)
         IO.puts("Spawn collectors")
         pid_elevator = self()
         ElevatorFSM.send_status(pid_FSM, pid_distributor, pid_elevator)
@@ -135,7 +135,7 @@ defmodule Elevatorm do
     previous status that was stored in the backup. It also send the backup file
     to the
   """
-  def retrieve_local_backup(sender, pid_FSM, pid_driver, pid_distributor) do
+  def retrieve_local_backup(sender, pid_FSM, pid_distributor) do
     case File.read("local_backup") do
       {:ok, data} ->
         IO.puts("
@@ -144,9 +144,11 @@ defmodule Elevatorm do
         £££££££££££££££££££££££££££££££££££££££££££££££££
          ")
         complete_system = :erlang.binary_to_term(data)
-        IO.puts("Complete system retrieved : #{inspect(complete_system)}")
-        IO.puts("Sending backup the complete system to the distributor")
-        send(pid_distributor, {:complete_list, sender, complete_system})
+        ip = get_my_local_ip()
+        my_elevator = Enum.find(complete_system, fn elevator -> elevator.ip == ip end)
+        IO.puts("My elevator system retrieved : #{inspect(complete_system)}")
+        IO.puts("Sending backup the elevator to the distributor")
+        send(pid_distributor, {:elevator_backup, sender, my_elevator})
 
       {:error, :enoent} ->
         IO.puts("
@@ -155,9 +157,11 @@ defmodule Elevatorm do
          ££££££££££££££££££££££££££££££££££££££££££££££££££
          ")
         complete_system = CreateList.init_list_fake(get_my_local_ip(), self())
-        IO.puts("Complete system retrieved : #{inspect(complete_system)}")
-        IO.puts("Sending backup the complete system to the distributor")
-        send(pid_distributor, {:complete_list, sender, complete_system})
+        ip = get_my_local_ip()
+        my_elevator = Enum.find(complete_system, fn elevator -> elevator.ip == ip end)
+        IO.puts("My elevator system retrieved : #{inspect(complete_system)}")
+        IO.puts("Sending backup the elevator to the distributor")
+        send(pid_distributor, {:elevator_backup, sender, my_elevator})
 
       unspected ->
         IO.puts("Unespected read result : #{inspect(unspected)}")
