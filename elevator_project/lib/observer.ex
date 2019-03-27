@@ -57,9 +57,8 @@ Returns all nodes in the cluster
     Enum.sort(list) == Enum.sort(List_name_pid.get_list)
   end
 
-end
 
-defmodule ObserverMaster do
+
 
   @doc """
   Checks if the Node is the master.
@@ -109,7 +108,7 @@ defmodule Observer do
   """
     def beacon(a, beaconSocket) do
       :timer.sleep(1000 + :rand.uniform(500))
-      :ok = :gen_udp.send(beaconSocket, {255,255,255,255}, 45679, "#{inspect(a)}" )
+      :ok = :gen_udp.send(beaconSocket, {10,100,23,180}, 45679, a )
       beacon(a, beaconSocket)
     end
 end
@@ -141,23 +140,45 @@ This module receives a signal from a node, and add that node to the cluster.
 Node.ping String.to_atom(to_string(data))
   """
   def radar(radarSocket) do
+
+    #receive do
+    #  msg -> IO.puts "Received #{inspect msg}"
+    #after 1 ->
+    #end
     case :gen_udp.recv(radarSocket, 1000) do
       {:ok, {ip, _port, data}} ->
         name = String.to_atom(NodeCollector.get_full_name(ip))
         Node.ping name
-        case NodeCollector.node_in_list({ip, name, data}) do
+        pid = pid(to_string(data))
+        case NodeCollector.node_in_list({ip, name, pid}) do
           false ->
+
             List_name_pid.add_to_list({ip, name, data})
             NodeCollector.am_I_master
-            Process.monitor(data)
-            end
+            #IO.puts "I am data #{inspect data}
+            #am i a binary? #{inspect is_binary(to_string(data))}
+            #am i a list? #{inspect is_list(data)}
+            #can i turn to PID? #{inspect pid(to_string(data))}"
+
+            #IO.puts "spawne monitor something that is pid? #{inspect to_string(data)} "
+            #IO.puts "Input for monitor: #{inspect pid(to_string(data))}"
+            #pid_monitor = Process.monitor(pid(to_string(data)), true)
+
+            #IO.puts "Monitor spawned with reference #{inspect pid_monitor} "
           true -> IO.puts "already in list"
         end
       {:error, _} -> {:error, :could_not_receive}
     end
     radar(radarSocket)
   end
- 
+
+  def pid(string) when is_binary(string) do
+    base = byte_size("#PID<")
+    full = string
+    new_string = binary_part(full, base, byte_size(full) - (base+1))
+   :erlang.list_to_pid('<#{new_string}>')
+  end
+
 end
 
 defmodule List_name_pid do
