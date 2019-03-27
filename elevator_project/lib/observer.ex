@@ -64,8 +64,8 @@ This module broadcasts a signal containing it self to other nodes on the same ne
 @doc """
 start_link(port) boots a server process
 """
-  def start_link(port \\ 45678) do
-    GenServer.start_link(__MODULE__, port)
+  def start_link(a, port \\ 45678) do
+    GenServer.start_link(__MODULE__,a)
   end
 
   @doc """
@@ -73,9 +73,9 @@ start_link(port) boots a server process
   The initialization runs inside the server process right after it boots
 defmodule Observer do
   """
-    def init(port) do
+    def init(a, port) do
       {:ok, beaconSocket} = :gen_udp.open(port, [active: false, broadcast: true])
-      beacon(beaconSocket)
+      beacon(a, beaconSocket)
     end
 
   @doc """
@@ -86,10 +86,10 @@ defmodule Observer do
   10,22,77,209
   {inspect(self())}
   """
-    def beacon(beaconSocket) do
+    def beacon(a, beaconSocket) do
       :timer.sleep(1000 + :rand.uniform(500))
-      :ok = :gen_udp.send(beaconSocket, {255,255,255,255}, 45679, "#{inspect(self())}" )
-      beacon(beaconSocket)
+      :ok = :gen_udp.send(beaconSocket, {255,255,255,255}, 45679, "#{inspect(a)}" )
+      beacon(a, beaconSocket)
     end
 end
 
@@ -122,7 +122,6 @@ Node.ping String.to_atom(to_string(data))
   def radar(radarSocket) do
     case :gen_udp.recv(radarSocket, 1000) do
       {:ok, {ip, _port, data}} ->
-        IO.puts "received"
         name = String.to_atom(NodeCollector.get_full_name(ip))
         Node.ping name
         case NodeCollector.node_in_list({name, data}) do
