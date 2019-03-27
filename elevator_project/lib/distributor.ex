@@ -21,7 +21,7 @@ defmodule Distributor do
     IO.puts("Pid genserver: #{inspect pid_genserver}")
     Enum.map(list_tuple_ips_pids, fn {ip, pid} -> Elevator.init(ip, pid) end) |>
     update_complete_list()
-    {:ok, pid_watchdog}=WatchdogList.start()
+    {:ok, pid_watchdog} = WatchdogList.start()
     IO.puts("Pid watchdog: #{inspect pid_watchdog}")
     Enum.map(list_tuple_ips_pids, fn {ip, pid} -> WatchdogList.add_to_watchdog_list(ip, pid) end)
     get_complete_list() |>
@@ -60,10 +60,14 @@ defmodule Distributor do
     GenServer.cast(:genserver, {:replace_elevator_in_complete_list, new_elevator, pid})
   end
 
+  def delete_elevator_in_complete_list(elevator) do
+    GenServer.cast(:genserver, {:delete_elevator_in_complete_list, elevator})
+  end
+
   # -------------CAST AND CALLS -----------------
 
   def handle_call(:get_complete_list, _from, complete_list) do
-    IO.puts("get_complete_list #{inspect complete_list}")
+    IO.puts("get_complete_list")
     {:reply, complete_list, complete_list}
   end
 
@@ -78,14 +82,19 @@ defmodule Distributor do
   end
 
   def handle_cast({:update_complete_list, new_list}, _) do
-    IO.puts("update_complete_list to #{inspect new_list}")
+    IO.puts("update_complete_list to")
     {:noreply, new_list}
   end
 
   def handle_cast({:replace_elevator_in_complete_list, new_elevator, pid}, complete_list) do
-    IO.puts("replace_elevator_in_complete_list #{inspect complete_list}")
+    IO.puts("replace_elevator_in_complete_list")
     index = Enum.find_index(complete_list, fn elevator -> elevator.pid == pid end)
     {:noreply, List.replace_at(complete_list, index, new_elevator)}
+  end
+
+  def handle_cast({:delete_elevator_in_complete_list, elevator}, complete_list) do
+    IO.puts("delete_elevator_in_complete_list")
+    {:noreply, List.delete(complete_list, elevator)}
   end
 
   # ============ MAILBOX ============
@@ -107,20 +116,21 @@ defmodule Distributor do
       {:state, sender_pid, state} ->
         IO.puts("DIST [#{inspect(self())}] Received the state #{inspect state} from #{inspect(sender_pid)}")
         kill_broken_elevators()
+        update_system_list(sender_pid, state)
 
       {:order, sender_pid, order} ->
-        IO.puts("DIST [#{inspect(self())}] Received from #{inspect(sender_pid)}")
+        IO.puts("DIST [#{inspect(self())}] Received the order #{inspect order} from #{inspect(sender_pid)}")
         kill_broken_elevators()
         update_system_list(sender_pid, order)
 
       {:elevator_backup, sender_pid, elevator_backup} ->
-        IO.puts("DIST [#{inspect(self())}] Received from #{inspect(sender_pid)}")
+        IO.puts("DIST [#{inspect(self())}] Received the backup #{inspect elevator_backup} from #{inspect(sender_pid)}")
         Enum.map(elevator_backup.orders, fn order -> update_system_list(sender_pid, order) end)
         update_system_list(sender_pid, elevator_backup.state)
         update_system_list(sender_pid, elevator_backup.lights)
 
       {:ip_and_pid, sender_pid, _list_ip_pid} ->
-        IO.puts("DIST [#{inspect(self())}] Received from #{inspect(sender_pid)}")
+        IO.puts("DIST [#{inspect(self())}] Received list of ips and pids from #{inspect(sender_pid)}")
         #[{ip, :"navn", pid}, {ip, :navn, pid}] LIST FROM OBSERVER
 
       message ->
@@ -135,11 +145,21 @@ defmodule Distributor do
 
   def kill_broken_elevators do
     case WatchdogList.is_elevator_broken() do
-      nil -> :completed
+      nil -> IO.puts"No elevator to kill"
       {_ip, pid, _} ->
         IO.puts "kill node #{inspect pid}"
-        tell(pid, :harakin) # Japanese: cur your belly
-        kill_broken_elevators()
+        tell(pid, :harakiri) # Japanese: cut your belly
+        if length(get_complete_list()) == 1 do
+            IO.puts "Master say goodbye ;( "
+            Process.exit(self(), :kill)
+        end
+        killed_elevator = get_elevator_in_complete_list(pid)
+        delete_elevator_in_complete_list(killed_elevator)
+        Enum.map(kill_broken_elevators.orders, fn order ->
+            if order.type != :cab do
+                update_system_list(pid, order)
+            end
+        end)
       end
   end
 
@@ -151,12 +171,11 @@ defmodule Distributor do
   floors, and kill the node if that is the case
   """
   def update_system_list(sender_pid, state = %State{}) do
-    # watchdog
-    # state, order and light handling
     elevator = get_elevator_in_complete_list(sender_pid)
-    if elevator.orders == [] do
-      WatchdogList.update_watchdog_list(elevator.ip, elevator.pid)
-    end
+    # if elevator.orders != [] do
+    #   IO.puts("Elevator has orders, update time")
+    #   WatchdogList.update_watchdog_list(elevator.ip, elevator.pid)
+    # end
     %{elevator | state: state}
     |> replace_elevator_in_complete_list(sender_pid)
     Enum.map(elevator.orders, fn order ->
@@ -168,8 +187,13 @@ defmodule Distributor do
             light
           end
         end)
-        %{elevator | orders: elevator.orders -- [order], lights: lights} |>
-        replace_elevator_in_complete_list(sender_pid)
+        new_elevator = %{elevator | orders: elevator.orders -- [order], lights: lights}
+        replace_elevator_in_complete_list(new_elevator, sender_pid)
+        IO.puts "DISTRIBUTOR -> Order completed, updating watchdog times if there is still orders"
+        if new_elevator.orders != [] do
+            IO.puts("Orders exist: update watchdog time")
+            WatchdogList.update_watchdog_list(elevator.ip, elevator.pid)
+        end
       end
     end)
     Enum.map(get_complete_list(), fn elevator -> tell(elevator.pid, get_complete_list()) end)
@@ -182,12 +206,13 @@ defmodule Distributor do
   or adding it to light order list.
   """
   def update_system_list(sender_pid, order = %Order{}) do
+    elevator = get_elevator_in_complete_list(sender_pid)
+    WatchdogList.update_watchdog_list(elevator.ip, elevator.pid)
     new_light = Light.init(order.type, order.floor, :on)
     IO.puts "Light on created"
     elevator_min_cost =
       case order.type do
         :cab ->
-          elevator = get_elevator_in_complete_list(sender_pid)
           if Enum.any?(elevator.lights, fn light -> light != new_light end) or elevator.lights == [] do
             IO.puts("______CAB add light to list #{inspect new_light}")
             %{elevator | orders: elevator.orders ++ [order], lights: elevator.lights ++ [new_light]}
@@ -196,13 +221,13 @@ defmodule Distributor do
             %{elevator | orders: elevator.orders ++ [order]}
           end
         _ ->
-          Enum.map(get_complete_list(), fn elevator ->
-            if Enum.any?(elevator.lights, fn light -> light != new_light end) or elevator.lights == [] do
+          Enum.map(get_complete_list(), fn elevator_in_list ->
+            if Enum.any?(elevator_in_list.lights, fn light -> light != new_light end) or elevator_in_list.lights == [] do
               IO.puts("_____add light to list #{inspect new_light}")
-              %{elevator |lights: elevator.lights ++ [new_light]}
+              %{elevator_in_list |lights: elevator_in_list.lights ++ [new_light]}
             else
               IO.puts("_____light already in list #{inspect new_light}")
-              elevator
+              elevator_in_list
             end
           end) |>
           update_complete_list()
@@ -322,8 +347,8 @@ defmodule WatchdogList do
     GenServer.start_link(__MODULE__, [], name: :watchdoglist)
   end
 
-  def get_watchdog(ip, pid) do
-    GenServer.call(:watchdoglist, {:get_watchdog, ip, pid})
+  def get_watchdog_list(ip, pid) do
+    GenServer.call(:watchdoglist, {:get_watchdog_list, ip, pid})
   end
 
   def is_elevator_broken do
@@ -340,14 +365,15 @@ defmodule WatchdogList do
 
   # -------------CAST AND CALLS -----------------
 
-  def handle_call({:get_watchdog, find_ip, find_pid}, _from, watchdog_list) do
+  def handle_call({:get_watchdog_list, find_ip, find_pid}, _from, watchdog_list) do
     IO.puts("Get watchdog list #{inspect watchdog_list} with pid #{inspect find_pid}")
     {:reply, Enum.find(watchdog_list, fn {ip, pid, _} -> ip == find_ip and pid == find_pid end), watchdog_list}
   end
 
   def handle_call({:is_elevator_broken, new_time}, _from, watchdog_list) do
     IO.puts("Check if elevator is broken")
-    {:reply, Enum.find(watchdog_list, fn {_, _, time} -> !(time == nil or Time.diff(new_time, time) < 5) end), watchdog_list}
+    Enum.each(watchdog_list, fn {ip, pid, time} -> IO.puts("new time: #{inspect new_time} and old time: #{inspect time}") end)
+    {:reply, Enum.find(watchdog_list, fn {_, _, time} -> !(time == nil or Time.diff(new_time, time) < 25) end), watchdog_list}
   end
 
   def handle_cast( {:add_to_watchdog_list, ip, pid}, watchdog_list) do

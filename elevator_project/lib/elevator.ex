@@ -49,7 +49,7 @@ defmodule Elevatorm do
 
   def receive_orders_loop(pid_distributor, pid_FSM, pid_driver, all_pids) do
     receive do
-      {:ok, killer, :harakin} ->
+      {:ok, killer, :harakiri} ->
         if killer == pid_distributor do
           Enum.map(all_pids, fn pid -> Process.exit(pid, :kill) end)
           IO.puts "Bye ;( "
@@ -58,10 +58,10 @@ defmodule Elevatorm do
           IO.puts "A process different to my distributor wants me to kill myself :(  "
         end
       {:ok, pid_sender, complete_system} ->
-        IO.puts("Complete system received #{inspect(complete_system)}")
+        IO.puts("Elevator received complete system received ")
 
         if pid_sender != pid_distributor do
-          IO.puts("I am receiving a complete_system from an unexpected distributor")
+          IO.puts("Elevator receiving a complete_system from an unexpected distributor")
         end
 
         store_local_backup(complete_system)
@@ -150,9 +150,7 @@ defmodule Elevatorm do
     case File.read("local_backup") do
       {:ok, data} ->
         IO.puts("
-        £££££££££££££££££££££££££££££££££££££££££££££££££
         £  There is a backup avalible
-        £££££££££££££££££££££££££££££££££££££££££££££££££
          ")
         complete_system = :erlang.binary_to_term(data)
         ip = get_my_local_ip()
@@ -163,14 +161,11 @@ defmodule Elevatorm do
 
       {:error, :enoent} ->
         IO.puts("
-         ££££££££££££££££££££££££££££££££££££££££££££££££££
          £  There is no backup, lets create one
-         ££££££££££££££££££££££££££££££££££££££££££££££££££
          ")
         complete_system = CreateList.init_list_fake(get_my_local_ip(), self())
         ip = get_my_local_ip()
         my_elevator = Enum.find(complete_system, fn elevator -> elevator.ip == ip end)
-        IO.puts("My elevator system retrieved : #{inspect(complete_system)}")
         IO.puts("Sending backup the elevator to the distributor")
         send(pid_distributor, {:elevator_backup, sender, my_elevator})
 
@@ -233,7 +228,6 @@ defmodule Elevatorm do
   end
 
   def action_light(light, pid) do
-    IO.puts("Set light: #{inspect(light)}")
     Driver.set_order_button_light(pid, light.type, light.floor, light.state)
   end
 end

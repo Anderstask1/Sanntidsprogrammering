@@ -7,7 +7,6 @@ This module contains functions for making a list of all nodes in a cluster.
 Creates a list of tuples. Each tuple contains the name of a node, and its PID.
 All nodes in the cluster is included in the created list, and they are also
 sorted by IP.
-
 """
 
   def hello do
@@ -47,8 +46,29 @@ Returns all nodes in the cluster
     end
   end
 
-  def node_in_list({node, data}) do
-    Enum.member?(List_name_pid.get_list, {node, data})
+  def node_in_list({ip, node, data}) do
+    Enum.member?(List_name_pid.get_list, {ip, node, data})
+  end
+
+  def is_list_the_same do
+    list = List_name_pid.get_list
+    :timer.sleep(3000)
+    Enum.sort(list) == Enum.sort(List_name_pid.get_list)
+  end
+
+end
+
+defmodule ObserverMaster do
+
+  @doc """
+  Checks if the Node is the master.
+  test list every 3rd second for changes in the list.
+  """
+  def am_I_master do
+    if Node.self() == Enum.at(Enum.at(List_name_pid.get_list,0),1) do #yes
+      IO.puts "Im master"
+      IO.puts "send the list"
+    end
   end
 
 end
@@ -64,8 +84,8 @@ This module broadcasts a signal containing it self to other nodes on the same ne
 @doc """
 start_link(port) boots a server process
 """
-  def start_link(port \\ 45678) do
-    GenServer.start_link(__MODULE__, port)
+  def start_link(a) do
+    GenServer.start_link(__MODULE__,a)
   end
 
   @doc """
@@ -73,9 +93,9 @@ start_link(port) boots a server process
   The initialization runs inside the server process right after it boots
 defmodule Observer do
   """
-    def init(port) do
-      {:ok, beaconSocket} = :gen_udp.open(port, [active: false, broadcast: true])
-      beacon(beaconSocket)
+    def init(a) do
+      {:ok, beaconSocket} = :gen_udp.open(45678, [active: false, broadcast: true])
+      beacon(a, beaconSocket)
     end
 
   @doc """
@@ -86,10 +106,10 @@ defmodule Observer do
   10,22,77,209
   {inspect(self())}
   """
-    def beacon(beaconSocket) do
+    def beacon(a, beaconSocket) do
       :timer.sleep(1000 + :rand.uniform(500))
-      :ok = :gen_udp.send(beaconSocket, {255,255,255,255}, 45679, "#{inspect(self())}" )
-      beacon(beaconSocket)
+      :ok = :gen_udp.send(beaconSocket, {255,255,255,255}, 45679, "#{inspect(a)}" )
+      beacon(a, beaconSocket)
     end
 end
 
@@ -122,11 +142,14 @@ Node.ping String.to_atom(to_string(data))
   def radar(radarSocket) do
     case :gen_udp.recv(radarSocket, 1000) do
       {:ok, {ip, _port, data}} ->
-        IO.puts "received"
         name = String.to_atom(NodeCollector.get_full_name(ip))
         Node.ping name
-        case NodeCollector.node_in_list({name, data}) do
-          false -> List_name_pid.add_to_list({name, data})
+        case NodeCollector.node_in_list({ip, name, data}) do
+          false ->
+            List_name_pid.add_to_list({ip, name, data})
+            NodeCollector.am_I_master
+            Process.monitor(data)
+            end
           true -> IO.puts "already in list"
         end
       {:error, _} -> {:error, :could_not_receive}
@@ -155,8 +178,9 @@ defmodule List_name_pid do
     GenServer.call(:genserver, :get_list)
   end
 
-  def add_to_list({name, pid}) do
-    GenServer.cast(:genserver, {:add_to_list, {name, pid}})
+  def add_to_list({ip, name, pid}) do
+    GenServer.cast(:genserver, {:add_to_list, {ip, name, pid}})
+    Enum.sort(get_list)
   end
 
   # -------------CAST AND CALLS -----------------
@@ -165,7 +189,7 @@ defmodule List_name_pid do
     {:reply, list, list}
   end
 
-  def handle_cast({:add_to_list, {name, pid}}, list) do
-    {:noreply, list ++ [{name, pid}]}
+  def handle_cast({:add_to_list, {ip, name, pid}}, list) do
+    {:noreply, list ++ [{ip, name, pid}]}
   end
 end
