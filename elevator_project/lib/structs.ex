@@ -205,11 +205,11 @@ defmodule CreateList do
 
     lights = [light1, light2, light3 , light4, light5, light6, light7, light8, light9, light10]
 
-    ip1 = mypi
+    ip1 = myip
     pid1 = mypid
 
     elevator1 = Elevator.init(ip1, pid1, state, orders, lights)
-    CompleteSystem.init(elevator1)
+    [elevator1]
   end
 
   def init_list_due(myip) do

@@ -8,18 +8,15 @@ defmodule Distributor do
   @bottom 0
   @top 3
 
-<<<<<<< HEAD
   @doc """
   Input is a list of tuples with the ip and pid of each node in the cluster.
   Setup the genserver, create a list of elevators with the pid and ip in the input
   and broadcast this list to all nodes.
   """
-=======
   # =========== GENSERVER =============
   # -------------API -----------------
 
   # create the genserver with an empty list
->>>>>>> 50d065a6f399a68064c2ffbf086742de88a555ab
   def start(list_tuple_ips_pids) do
     IO.puts("DIST start pid: #{inspect self()}")
     {:ok, pid_genserver} = start()
