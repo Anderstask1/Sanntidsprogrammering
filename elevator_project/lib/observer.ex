@@ -181,6 +181,47 @@ Node.ping String.to_atom(to_string(data))
 
 end
 
+defmodule Nodes do
+  use GenServer
+
+  # create the genserver with an empty list
+  def init do
+    {:ok, _} = start()
+  end
+
+  def init(init_arg) do
+    {:ok, init_arg}
+  end
+
+  def start_link do
+    GenServer.start_link(__MODULE__, [], name: list_of_nodes)
+  end
+
+  def get_list do
+    GenServer.call(list_of_nodes, :get_list)
+  end
+
+  def add_to_list({ip, name, pid}) do
+    GenServer.cast(list_of_nodes, {:add_to_list, {ip, name, pid}})
+    Enum.sort(get_list)
+  end
+
+  def get_all do
+    Genserver.multi_call(list_of_nodes)
+  end
+
+  # -------------CAST AND CALLS -----------------
+
+  def handle_call(:get_list, _from, list) do
+    {:reply, list, list}
+  end
+
+  def handle_cast({:add_to_list, {ip, name, pid}}, list) do
+    {:noreply, list ++ [{ip, name, pid}]}
+  end
+end
+
+
 defmodule List_name_pid do
 
   # create the genserver with an empty list

@@ -34,5 +34,6 @@ defmodule Init do
     List_name_pid.start
     spawn fn -> Beacon.start_link(a) end
     spawn fn -> Radar.start_link end
+    spawn fn -> Nodes.start_link end
   end
 end
