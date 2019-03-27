@@ -47,8 +47,8 @@ Returns all nodes in the cluster
     end
   end
 
-  def node_in_list(node) do
-    Enum.member?(all_nodes, node)
+  def node_in_list({node, data}) do
+    Enum.member?(List_name_pid.get_list, {node, data})
   end
 
 end
@@ -125,7 +125,7 @@ Node.ping String.to_atom(to_string(data))
         IO.puts "received"
         name = String.to_atom(NodeCollector.get_full_name(ip))
         Node.ping name
-        case NodeCollector.node_in_list(name) do
+        case NodeCollector.node_in_list({name, data}) do
           false -> List_name_pid.add_to_list({name, data})
           true -> IO.puts "already in list"
         end
