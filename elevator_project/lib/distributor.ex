@@ -85,7 +85,9 @@ defmodule Distributor do
   end
 
   def handle_cast({:replace_elevator_in_complete_list, new_elevator, pid}, complete_list) do
-    IO.puts("replace_elevator_in_complete_list #{inspect(complete_list)}")
+    IO.puts("
+    replace_elevator_in_complete_list #{inspect(complete_list)}
+    ")
     index = Enum.find_index(complete_list, fn elevator -> elevator.pid == pid end)
     {:noreply, List.replace_at(complete_list, index, new_elevator)}
   end
@@ -117,6 +119,16 @@ defmodule Distributor do
       {:order, sender_pid, order} ->
         IO.puts("DIST [#{inspect(self())}] Received from #{inspect(sender_pid)}")
         update_system_list(sender_pid, order)
+
+        {:complete_list, sender_pid, complete_list} ->
+            IO.puts("DIST [#{inspect(self())}] Received from #{inspect(sender_pid)}")
+            pdate_complete_list(complete_list)
+
+        message ->
+          IO.puts(
+            "Error distributor module: unexpected message before initialization #{inspect(message)}"
+          )
+
 
       :error ->
         :error

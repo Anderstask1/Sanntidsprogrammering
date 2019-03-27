@@ -125,6 +125,7 @@ defmodule Elevatorm do
       Driver.set_motor_direction(pid_driver, :stop)
       floor = Driver.get_floor_sensor_state(pid_driver)
       ElevatorFSM.set_status(pid_FSM, :IDLE, floor, :idle)
+      ElevatorFSM.send_status(pid_FSM, pid_distributor, self())
       :ok
     end
   end
@@ -135,73 +136,31 @@ defmodule Elevatorm do
     to the
   """
   def retrieve_local_backup(sender, pid_FSM, pid_driver, pid_distributor) do
-    ip = get_my_local_ip()
-
     case File.read("local_backup") do
       {:ok, data} ->
         IO.puts("
-
-         There is a backup avalieble
-
+        £££££££££££££££££££££££££££££££££££££££££££££££££
+        £  There is a backup avalible
+        £££££££££££££££££££££££££££££££££££££££££££££££££
          ")
         complete_system = :erlang.binary_to_term(data)
         IO.puts("Complete system retrieved : #{inspect(complete_system)}")
-        IO.puts("Searching my IP #{inspect(complete_system)} in the complete system backup")
-
-        case Enum.find(complete_system, fn elevator -> elevator.ip == ip end) do
-          :error ->
-            :ok
-
-          elevator ->
-            IO.puts("The previous status was: #{inspect(elevator.state)}")
-            floor = elevator.state.floor
-
-            if Driver.get_floor_sensor_state(pid_driver) != floor do
-              IO.puts(
-                "Calling elevator loop with status: #{inspect(ElevatorFSM.get_state(pid_FSM))}"
-              )
-
-              IO.puts("for going to floor: #{inspect(floor)}")
-              spawn(fn -> elevator_loop(sender, pid_FSM, pid_driver, pid_distributor, floor) end)
-              :timer.sleep(9000)
-            end
-
-            ElevatorFSM.set_status(pid_FSM, :IDLE, floor, :idle)
-            ElevatorFSM.send_status(pid_FSM, pid_distributor, self())
-        end
+        IO.puts("Sending backup the complete system to the distributor")
+        send(pid_distributor, {:complete_list, sender, complete_system})
 
       {:error, :enoent} ->
         IO.puts("
          ££££££££££££££££££££££££££££££££££££££££££££££££££
-         There is no backup, lets create one
+         £  There is no backup, lets create one
          ££££££££££££££££££££££££££££££££££££££££££££££££££
          ")
         complete_system = CreateList.init_list_fake(get_my_local_ip(), self())
-
-        case Enum.find(complete_system, fn elevator -> elevator.ip == ip end) do
-          :error ->
-            :ok
-
-          elevator ->
-            IO.puts("The previous status was: #{inspect(elevator.state)}")
-            floor = elevator.state.floor
-
-            if Driver.get_floor_sensor_state(pid_driver) != floor do
-              IO.puts(
-                "Calling elevator loop with status: #{inspect(ElevatorFSM.get_state(pid_FSM))}"
-              )
-
-              IO.puts("for going to floor: #{inspect(floor)}")
-              spawn(fn -> elevator_loop(sender, pid_FSM, pid_driver, pid_distributor, floor) end)
-              :timer.sleep(9000)
-            end
-
-            ElevatorFSM.set_status(pid_FSM, :IDLE, floor, :idle)
-            ElevatorFSM.send_status(pid_FSM, pid_distributor, self())
-        end
+        IO.puts("Complete system retrieved : #{inspect(complete_system)}")
+        IO.puts("Sending backup the complete system to the distributor")
+        send(pid_distributor, {:complete_list, sender, complete_system})
 
       unspected ->
-        IO.puts("Unespected search result : #{inspect(unspected)}")
+        IO.puts("Unespected read result : #{inspect(unspected)}")
     end
   end
 
