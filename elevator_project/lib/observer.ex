@@ -51,6 +51,27 @@ Returns all nodes in the cluster
     Enum.member?(List_name_pid.get_list, {ip, node, data})
   end
 
+  def is_list_the_same do
+    list = List_name_pid.get_list
+    :timer.sleep(3000)
+    Enum.sort(list) == Enum.sort(List_name_pid.get_list)
+  end
+
+end
+
+defmodule ObserverMaster do
+
+  @doc """
+  Checks if the Node is the master.
+  test list every 3rd second for changes in the list.
+  """
+  def am_I_master do
+    if Node.self() == Enum.at(Enum.at(List_name_pid.get_list,0),1) do #yes
+      IO.puts "Im master"
+      IO.puts "send the list"
+    end
+  end
+
 end
 
 defmodule Beacon do
@@ -125,14 +146,18 @@ Node.ping String.to_atom(to_string(data))
         name = String.to_atom(NodeCollector.get_full_name(ip))
         Node.ping name
         case NodeCollector.node_in_list({ip, name, data}) do
-          false -> List_name_pid.add_to_list({ip, name, data})
+          false ->
+            List_name_pid.add_to_list({ip, name, data})
+            NodeCollector.am_I_master
+            Process.monitor(data)
+            end
           true -> IO.puts "already in list"
         end
       {:error, _} -> {:error, :could_not_receive}
     end
     radar(radarSocket)
   end
-
+ 
 end
 
 defmodule List_name_pid do
@@ -154,8 +179,9 @@ defmodule List_name_pid do
     GenServer.call(:genserver, :get_list)
   end
 
-  def add_to_list({name, pid}) do
-    GenServer.cast(:genserver, {:add_to_list, {name, pid}})
+  def add_to_list({ip, name, pid}) do
+    GenServer.cast(:genserver, {:add_to_list, {ip, name, pid}})
+    Enum.sort(get_list)
   end
 
   # -------------CAST AND CALLS -----------------
@@ -164,7 +190,7 @@ defmodule List_name_pid do
     {:reply, list, list}
   end
 
-  def handle_cast({:add_to_list, {name, pid}}, list) do
-    {:noreply, list ++ [{name, pid}]}
+  def handle_cast({:add_to_list, {ip, name, pid}}, list) do
+    {:noreply, list ++ [{ip, name, pid}]}
   end
 end

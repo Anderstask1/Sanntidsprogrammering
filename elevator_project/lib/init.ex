@@ -31,7 +31,7 @@ defmodule Init do
     Node.start(String.to_atom(full_name), :longnames, tick_time)
     Node.set_cookie :hello
     a = self()
-    spawn fn -> List_name_pid.init end
+    List_name_pid.start
     spawn fn -> Beacon.start_link(a) end
     spawn fn -> Radar.start_link end
   end
