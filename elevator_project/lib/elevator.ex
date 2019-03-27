@@ -15,7 +15,7 @@ defmodule Elevatorm do
         {:ok, pid_FSM} = ElevatorFSM.start_link()
         IO.puts("FSM started")
         go_to_know_state(pid_FSM, pid_driver, pid_distributor)
-        retrieve_local_backup(self(), pid_FSM, pid_distributor)
+        retrieve_local_backup(self(), pid_distributor)
         IO.puts("Spawn collectors")
         pid_elevator = self()
         ElevatorFSM.send_status(pid_FSM, pid_distributor, pid_elevator)
@@ -37,7 +37,8 @@ defmodule Elevatorm do
         IO.puts("ORDER COLLECTOR  #{inspect(pid_order_collector)}")
         IO.puts("FLOOR COLLECTOR  #{inspect(pid_floor_collector)}")
         IO.puts("======================================")
-        receive_orders_loop(pid_distributor, pid_FSM, pid_driver)
+        all_pids=[pid_order_collector,pid_floor_collector,pid_FSM, pid_driver]
+        receive_orders_loop(pid_distributor, pid_FSM, pid_driver, all_pids)
 
       message ->
         IO.puts(
@@ -46,8 +47,16 @@ defmodule Elevatorm do
     end
   end
 
-  def receive_orders_loop(pid_distributor, pid_FSM, pid_driver) do
+  def receive_orders_loop(pid_distributor, pid_FSM, pid_driver, all_pids) do
     receive do
+      {:ok, killer, :harakin} ->
+        if killer == pid_distributor do
+          Enum.map(all_pids, fn pid -> Process.exit(pid, :kill) end)
+          IO.puts "Bye ;( "
+          Process.exit(self(), :kill)
+        else
+          IO.puts "A process different to my distributor wants me to kill myself :(  "
+        end
       {:ok, pid_sender, complete_system} ->
         IO.puts("Complete system received #{inspect(complete_system)}")
 
@@ -79,7 +88,7 @@ defmodule Elevatorm do
       9_000 -> IO.puts("No orders received after 9 seconds")
     end
 
-    receive_orders_loop(pid_distributor, pid_FSM, pid_driver)
+    receive_orders_loop(pid_distributor, pid_FSM, pid_driver, all_pids)
   end
 
   def elevator_loop(sender, pid_FSM, pid_driver, pid_distributor, order) do
@@ -135,7 +144,7 @@ defmodule Elevatorm do
     previous status that was stored in the backup. It also send the backup file
     to the
   """
-  def retrieve_local_backup(sender, pid_FSM, pid_distributor) do
+  def retrieve_local_backup(sender, pid_distributor) do
     case File.read("local_backup") do
       {:ok, data} ->
         IO.puts("
