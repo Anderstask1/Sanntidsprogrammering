@@ -21,7 +21,8 @@ defmodule Distributor do
     IO.puts("Pid genserver: #{inspect pid_genserver}")
     Enum.map(list_tuple_ips_pids, fn {ip, pid} -> Elevator.init(ip, pid) end) |>
     update_complete_list()
-    WatchdogList.start()
+    {:ok, pid_watchdog}=WatchdogList.start()
+    IO.puts("Pid watchdog: #{inspect pid_watchdog}")
     Enum.map(list_tuple_ips_pids, fn {ip, pid} -> WatchdogList.add_to_watchdog_list(ip, pid) end)
     get_complete_list() |>
     Enum.map(fn elevator -> tell(elevator.pid, get_complete_list()) end)
@@ -118,7 +119,7 @@ defmodule Distributor do
         update_system_list(sender_pid, elevator_backup.state)
         update_system_list(sender_pid, elevator_backup.lights)
 
-      {:ip_and_pid, sender_pid, list_ip_pid} ->
+      {:ip_and_pid, sender_pid, _list_ip_pid} ->
         IO.puts("DIST [#{inspect(self())}] Received from #{inspect(sender_pid)}")
         #[{ip, :"navn", pid}, {ip, :navn, pid}] LIST FROM OBSERVER
 
@@ -135,7 +136,7 @@ defmodule Distributor do
   def kill_broken_elevators do
     case WatchdogList.is_elevator_broken() do
       nil -> :completed
-      {ip, pid, _} ->
+      {_ip, pid, _} ->
         IO.puts "kill node #{inspect pid}"
         tell(pid, :harakin) # Japanese: cur your belly
         kill_broken_elevators()

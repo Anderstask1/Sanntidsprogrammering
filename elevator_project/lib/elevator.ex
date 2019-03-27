@@ -122,6 +122,7 @@ defmodule Elevatorm do
     IO.puts("Moving to know state")
 
     if Driver.get_floor_sensor_state(pid_driver) == :between_floors do
+      IO.puts("==========between floors")
       {_state, _floor, movement} = ElevatorFSM.get_state(pid_FSM)
 
       if movement != :down do
@@ -134,6 +135,7 @@ defmodule Elevatorm do
       Driver.set_motor_direction(pid_driver, :stop)
       floor = Driver.get_floor_sensor_state(pid_driver)
       ElevatorFSM.set_status(pid_FSM, :IDLE, floor, :idle)
+      IO.puts("==========Sending status")
       ElevatorFSM.send_status(pid_FSM, pid_distributor, self())
       :ok
     end
