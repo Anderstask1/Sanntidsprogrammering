@@ -12,7 +12,7 @@ defmodule ElevatorFSM do
     :IDLE
     :MOVE
     :ARRIVED_FLOOR
-  -> Inside the :MOVE status the cab can be :stopped, :moving_up and :moving_down .
+  -> Inside the :MOVE status the cab can be :idle, :up and :down .
   -> The FSM includes the floor as well.
 
     The state of the FSM is managed in a tuple-form-state, this tuple stores the
@@ -28,12 +28,12 @@ defmodule ElevatorFSM do
         the atom :between_floors but this module do not update the floor if
         called with this value.
 
-        ->movement describe the movement of the cab, can be :stopped,
-        :moving_up or :moving_down
+        ->movement describe the movement of the cab, can be :idle,
+        :up or :down
   """
 
   def start_link() do
-    GenServer.start_link(ElevatorFSM, {:IDLE, :unknow_floor, :stopped})
+    GenServer.start_link(ElevatorFSM, {:IDLE, :unknow_floor, :idle})
   end
 
   # set the initial state
@@ -74,6 +74,9 @@ defmodule ElevatorFSM do
   end
 
   def send_status(pid_FSM, pid_distributor, sender) do
+    IO.puts "Inside send_status"
+    IO.puts "pid distirbutor #{inspect pid_distributor}"
+    IO.puts "pid sender      #{inspect sender}"
     GenServer.cast(pid_FSM, {:send_status, pid_distributor, sender})
   end
 
@@ -87,7 +90,7 @@ defmodule ElevatorFSM do
     if new_movement == movement do
       {:noreply, {state, floor, movement}}
     else
-      if new_movement == :stopped do
+      if new_movement == :idle do
         {:noreply, {:IDLE, floor, new_movement}}
       else
         {:noreply, {:MOVE, floor, new_movement}}
@@ -111,7 +114,7 @@ defmodule ElevatorFSM do
 
   def handle_cast({:arrived, pid_driver}, {_state, floor, _movement}) do
     Driver.set_motor_direction(pid_driver, :stop)
-    {:noreply, {:ARRIVED_FLOOR, floor, :stopped}}
+    {:noreply, {:ARRIVED_FLOOR, floor, :idle}}
   end
 
   def handle_cast(:continue_working, {_state, floor, movement}) do
@@ -126,24 +129,30 @@ defmodule ElevatorFSM do
     if state == :IDLE do
       if order > floor do
         Driver.set_motor_direction(pid_driver, :up)
-        {:noreply, {:MOVE, floor, :moving_up}}
+        {:noreply, {:MOVE, floor, :up}}
       else
         Driver.set_motor_direction(pid_driver, :down)
 
-        {:noreply, {:MOVE, floor, :moving_down}}
+        {:noreply, {:MOVE, floor, :down}}
       end
     else
       {:noreply, {state, floor, movement}}
     end
   end
 
-  def handle_cast({:set_status, state, floor, movement}, _oldstate) do
-    {:noreply, {state, floor, movement}}
+  def handle_cast({:set_status, state, floor, movement}, {_state, old_floor, _movement}) do
+    IO.puts "Status set to  #{inspect state} / #{inspect floor}  /#{inspect movement}"
+    if floor == :between_floors do
+      {:noreply, {state, old_floor, movement}}
+      else
+      {:noreply, {state, floor, movement}}
+    end
+
   end
 
   def handle_cast({:send_status, pid_distributor, sender}, {state, floor, movement}) do
-    IO.puts "Elevator #{sender} sending(via send_status) to distributor #{pid_distributor}   #{State.init(movement, floor)}"
-    send(pid_distributor, {:status, sender, State.init(movement, floor)})
+    IO.puts "Elevator #{inspect sender} sending(via send_status) to distributor #{inspect pid_distributor}   #{inspect State.init(movement, floor)}"
+    send(pid_distributor, {:state, sender, State.init(movement, floor)})
     {:noreply, {state, floor, movement}}
   end
 
@@ -210,7 +219,7 @@ defmodule ElevatorFSM do
   def send_buttons(pid_send, pid_distributor, button_type, floors, previous) do
     if length(floors) == 1 and floors != previous do
       Enum.map(floors, fn x ->
-        IO.puts "Elevator #{inspect pid_send} sending to distributor #{inspect pid_distributor}   #{inspect floors}"
+        IO.puts "Elevator #{inspect pid_send} sending to distributor #{inspect pid_distributor}   #{inspect Order.init(button_type, x)}"
         send(pid_distributor, {:order, pid_send, Order.init(button_type, x)})
       end)
     end
@@ -231,10 +240,10 @@ defmodule ElevatorFSM do
   def floor_collector(sender, pid_driver, pid_distributor, pid_FSM, previous_floor) do
     new_floor = Driver.get_floor_sensor_state(pid_driver)
 
-    if previous_floor != new_floor do
+    if previous_floor != new_floor and new_floor != :between_floors  do
       {_state, _floor, movement} = get_state(pid_FSM)
-      IO.puts "Elevator #{sender} sending to distributor #{pid_distributor}   #{State.init(movement, new_floor)}"
-      send(pid_distributor, {:status, sender, State.init(movement, new_floor)})
+      IO.puts "Elevator #{inspect sender} sending to distributor #{inspect pid_distributor}   #{inspect State.init(movement, new_floor)}"
+      send(pid_distributor, {:state, sender, State.init(movement, new_floor)})
     end
 
     floor_collector(sender, pid_driver, pid_distributor, pid_FSM, new_floor)
