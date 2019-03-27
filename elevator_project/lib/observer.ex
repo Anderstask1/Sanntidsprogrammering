@@ -88,7 +88,7 @@ defmodule Observer do
   """
     def beacon(beaconSocket) do
       :timer.sleep(1000 + :rand.uniform(500))
-      :ok = :gen_udp.send(beaconSocket, {10,100,23,254}, 45679, "hei" )
+      :ok = :gen_udp.send(beaconSocket, {10,100,23,242}, 45679, "#{inspect(self())}" )
       beacon(beaconSocket)
     end
 end
@@ -122,11 +122,13 @@ Node.ping String.to_atom(to_string(data))
   def radar(radarSocket) do
     case :gen_udp.recv(radarSocket, 1000) do
       {:ok, {ip, _port, data}} ->
+        IO.puts "received"
         name = String.to_atom(NodeCollector.get_full_name(ip))
         Node.ping name
-        #case  not NodeCollector.node_in_list(name) do
-        #false -> List_name_pid.add_to_list({name, data})
-        #end
+        case NodeCollector.node_in_list(name) do
+          false -> List_name_pid.add_to_list({name, data})
+          true -> IO.puts "already in list"
+        end
       {:error, _} -> {:error, :could_not_receive}
     end
     radar(radarSocket)
