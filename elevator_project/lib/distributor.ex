@@ -110,7 +110,17 @@ defmodule Distributor do
       {:order, sender_pid, order} ->
         IO.puts("DIST [#{inspect(self())}] Received from #{inspect(sender_pid)}")
         update_system_list(sender_pid, order)
-      :error -> :error
+
+      {:complete_list, sender_pid, complete_list} ->
+        IO.puts("DIST [#{inspect(self())}] Received from #{inspect(sender_pid)}")
+        update_complete_list(complete_list)
+
+      {:ip_and_pid, sender_pid, list_ip_pid} ->
+        IO.puts("DIST [#{inspect(self())}] Received from #{inspect(sender_pid)}")
+        #[{ip, :"navn", pid}, {ip, :navn, pid}]
+
+      :message ->
+        IO.puts "Error elevator module: unexpected message before initialization #{inspect message}"
     after
       3_000 ->
         IO.puts("#{inspect self()} did not receive after 3 second")
