@@ -64,7 +64,7 @@ This module broadcasts a signal containing it self to other nodes on the same ne
 @doc """
 start_link(port) boots a server process
 """
-  def start_link(a, port \\ 45678) do
+  def start_link(a) do
     GenServer.start_link(__MODULE__,a)
   end
 
@@ -73,8 +73,8 @@ start_link(port) boots a server process
   The initialization runs inside the server process right after it boots
 defmodule Observer do
   """
-    def init(a, port) do
-      {:ok, beaconSocket} = :gen_udp.open(port, [active: false, broadcast: true])
+    def init(a) do
+      {:ok, beaconSocket} = :gen_udp.open(45678, [active: false, broadcast: true])
       beacon(a, beaconSocket)
     end
 
