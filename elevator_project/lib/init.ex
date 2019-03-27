@@ -6,10 +6,6 @@ defmodule Init do
   list to all elevators.
   """
 
-<<<<<<< HEAD
-
-=======
->>>>>>> a71a35f8609dbd2c148b1adc8f9795f5ebecf1ff
   def get_my_ip do
     {:ok, socket} = :gen_udp.open(6789, [active: false, broadcast: true])
     :ok = :gen_udp.send(socket, {255,255,255,255}, 6789, "test packet")
