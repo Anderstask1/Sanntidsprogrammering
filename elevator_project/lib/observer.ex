@@ -37,7 +37,6 @@ sorted by IP.
     send pid, {:ping, self()}
   end
 
-
 @doc """
 Returns all nodes in the cluster
 """
@@ -48,8 +47,8 @@ Returns all nodes in the cluster
     end
   end
 
-  def node_in_list(node) do
-    Enum.member?(all_nodes, node)
+  def node_in_list({node, data}) do
+    Enum.member?(List_name_pid.get_list, {node, data})
   end
 
 end
@@ -72,9 +71,9 @@ start_link(port) boots a server process
   @doc """
   init(port) initialize the transmitter.
   The initialization runs inside the server process right after it boots
+defmodule Observer do
   """
     def init(port) do
-      IO.puts "init beacon"
       {:ok, beaconSocket} = :gen_udp.open(port, [active: false, broadcast: true])
       beacon(beaconSocket)
     end
@@ -89,7 +88,7 @@ start_link(port) boots a server process
   """
     def beacon(beaconSocket) do
       :timer.sleep(1000 + :rand.uniform(500))
-      :ok = :gen_udp.send(beaconSocket, {10,22,78,63}, 45679, "hei" )
+      :ok = :gen_udp.send(beaconSocket, {10,100,23,242}, 45679, "#{inspect(self())}" )
       beacon(beaconSocket)
     end
 end
@@ -123,11 +122,13 @@ Node.ping String.to_atom(to_string(data))
   def radar(radarSocket) do
     case :gen_udp.recv(radarSocket, 1000) do
       {:ok, {ip, _port, data}} ->
+        IO.puts "received"
         name = String.to_atom(NodeCollector.get_full_name(ip))
         Node.ping name
-        #case  not NodeCollector.node_in_list(name) do
-        #false -> List_name_pid.add_to_list({name, data})
-        #end
+        case NodeCollector.node_in_list({name, data}) do
+          false -> List_name_pid.add_to_list({name, data})
+          true -> IO.puts "already in list"
+        end
       {:error, _} -> {:error, :could_not_receive}
     end
     radar(radarSocket)
