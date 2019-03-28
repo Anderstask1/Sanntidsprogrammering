@@ -212,11 +212,17 @@ defmodule Nodes do
   # -------------CAST AND CALLS -----------------
 
 
-  def handle_call(:get_list, _from, list) do
-    {:reply, list, list}
+  def handle_call(:get_list, _from, tuple) do
+    IO.puts("is tuple?? #{inspect is_list(tuple)}")
+    list = Enum.at(tuple, 0)
+    IO.puts("print list #{inspect list}")
+    list_of_names=Enum.map(list, fn name -> elem(name, 0) end)
+    IO.puts("LIST #{inspect list_of_names}")
+    {:reply, tuple, tuple}
   end
 
   def handle_cast({:add_to_list, name}, list) do
+
     {:noreply, list ++ [name]}
   end
 
@@ -307,7 +313,7 @@ defmodule Init do
     spawn fn -> Radar.start_link end
     #:timer.sleep(2000)
 
-    spawn fn -> Nodes.start_link() end
+    Nodes.start_link()
 
     #Nodes.add_to_list(self())
   end
