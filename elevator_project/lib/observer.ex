@@ -185,11 +185,11 @@ defmodule Nodes do
   end
 
   def start_link() do
-    GenServer.start_link(__MODULE__, [], name: :list_of_nodes)
+    GenServer.start_link(__MODULE__, [Node.self()], name: :list_of_nodes)
   end
 
   def get_list do
-    GenServer.multi_call(Enum.at([node() | Node.list()],0), :list_of_nodes, :get_list)
+    GenServer.multi_call([node() | Node.list()], :list_of_nodes, :get_list)
   end
 
   def add_to_list(name) do
@@ -210,6 +210,7 @@ defmodule Nodes do
 
 
   # -------------CAST AND CALLS -----------------
+
 
   def handle_call(:get_list, _from, list) do
     {:reply, list, list}
@@ -307,7 +308,6 @@ defmodule Init do
     #:timer.sleep(2000)
 
     spawn fn -> Nodes.start_link() end
-    spawn fn -> Global_list.start_link end
 
     #Nodes.add_to_list(self())
   end
