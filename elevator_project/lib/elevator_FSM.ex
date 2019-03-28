@@ -33,7 +33,7 @@ defmodule ElevatorFSM do
   """
 
   def start_link() do
-    GenServer.start_link(ElevatorFSM, {:IDLE, :unknow_floor, :idle})
+    GenServer.start_link(ElevatorFSM, {:IDLE, :unknow_floor, :idle}, name: :genelevator)
   end
 
   # set the initial state
@@ -41,43 +41,43 @@ defmodule ElevatorFSM do
     {:ok, initial_data}
   end
 
-  def get_state(pid_FSM) do
-    GenServer.call(pid_FSM, :get_state)
+  def get_state() do
+    GenServer.call(:genelevator, :get_state)
   end
 
-  def update_movement(pid_FSM, new_movement) do
-    GenServer.cast(pid_FSM, {:update_movement, new_movement})
+  def update_movement(new_movement) do
+    GenServer.cast(:genelevator, {:update_movement, new_movement})
   end
 
-  def update_floor(pid_FSM, pid_driver) do
-    GenServer.cast(pid_FSM, {:update_floor, pid_driver})
+  def update_floor(pid_driver) do
+    GenServer.cast(:genelevator, {:update_floor, pid_driver})
   end
 
-  def arrived(pid_FSM, pid_driver) do
-    GenServer.cast(pid_FSM, {:arrived, pid_driver})
+  def arrived(pid_driver) do
+    GenServer.cast(:genelevator, {:arrived, pid_driver})
   end
 
-  def continue_working(pid_FSM) do
-    GenServer.cast(pid_FSM, :continue_working)
+  def continue_working() do
+    GenServer.cast(:genelevator, :continue_working)
   end
 
-  def still_in_previous_order(pid_FSM) do
-    GenServer.cast(pid_FSM, :still_in_previous_order)
+  def still_in_previous_order() do
+    GenServer.cast(:genelevator, :still_in_previous_order)
   end
 
-  def new_order(pid_FSM, pid_driver, order) do
-    GenServer.cast(pid_FSM, {:new_order, pid_driver, order})
+  def new_order(pid_driver, order) do
+    GenServer.cast(:genelevator, {:new_order, pid_driver, order})
   end
 
-  def set_status(pid_FSM, state, floor, movement) do
-    GenServer.cast(pid_FSM, {:set_status, state, floor, movement})
+  def set_status(state, floor, movement) do
+    GenServer.cast(:genelevator, {:set_status, state, floor, movement})
   end
 
-  def send_status(pid_FSM, pid_distributor, sender) do
+  def send_status(pid_distributor, sender) do
     IO.puts("Inside send_status")
     IO.puts("pid distirbutor #{inspect(pid_distributor)}")
     IO.puts("pid sender      #{inspect(sender)}")
-    GenServer.cast(pid_FSM, {:send_status, pid_distributor, sender})
+    GenServer.cast(:genelevator, {:send_status, pid_distributor, sender})
   end
 
   # ========== CAST AND CALLS ==========================
@@ -157,7 +157,8 @@ defmodule ElevatorFSM do
       }   #{inspect(State.init(movement, floor))}"
     )
 
-    send(pid_distributor, {:state, sender, State.init(movement, floor)})
+    # send(pid_distributor, {:state, sender, State.init(movement, floor)})
+    send( pid_distributor, {:bad_nodes, self(), elem(Distributor.send_state(State.init(movement, floor)),1)})
     {:noreply, {state, floor, movement}}
   end
 
@@ -229,8 +230,8 @@ defmodule ElevatorFSM do
             inspect(Order.init(button_type, x))
           }"
         )
-
-        send(pid_distributor, {:order, pid_send, Order.init(button_type, x)})
+        #send(pid_distributor, {:order, pid_send, Order.init(button_type, x)})
+        send( pid_distributor, {:bad_nodes, self(), elem(Distributor.send_order(Order.init(button_type, x)),1)})
       end)
     end
 
@@ -251,7 +252,8 @@ defmodule ElevatorFSM do
     new_floor = Driver.get_floor_sensor_state(pid_driver)
     :timer.sleep(5_000)
     if previous_floor != new_floor and new_floor != :between_floors do
-      {_state, _floor, movement} = get_state(pid_FSM)
+      Driver.set_floor_indicator(pid_driver, new_floor)
+      {_state, _floor, movement} = get_state()
 
       IO.puts(
         "Elevator #{inspect(sender)} sending to distributor #{inspect(pid_distributor)}   #{
@@ -259,7 +261,8 @@ defmodule ElevatorFSM do
         }"
       )
 
-      send(pid_distributor, {:state, sender, State.init(movement, new_floor)})
+      # send(pid_distributor, {:state, sender, State.init(movement, new_floor)})
+      send( pid_distributor, {:bad_nodes, self(), elem(Distributor.send_state(State.init(movement, new_floor)),1)})
     end
 
     floor_collector(sender, pid_driver, pid_distributor, pid_FSM, new_floor)

@@ -7,6 +7,7 @@ This module contains functions for making a list of all nodes in a cluster.
 Creates a list of tuples. Each tuple contains the name of a node, and its PID.
 All nodes in the cluster is included in the created list, and they are also
 sorted by IP.
+
 """
 
   def hello do
@@ -24,16 +25,15 @@ sorted by IP.
 
   def list_of_nodes do
     sorted_list = all_nodes |> Enum.sort
-    for each_node <- sorted_list, do: tuple = {each_node, pid(each_node) |> elem(1) }
+    for each_node <- sorted_list, do: tuple = {each_node, ip(each_node) |> elem(1) }
   end
 
-  def pid(node) do
-    pid = Node.spawn_link node, fn ->
-      receive do
-        {:ping, client} -> send client, :pong
-      end
-    end
-    send pid, {:ping, self()}
+  def ip(node) do
+    string = to_string(node)
+    base = byte_size(":elevator@")-1
+    new_string = binary_part(string, base, byte_size(string) -(base+1))
+    ip = :inet.parse_address(to_charlist(new_string))
+
   end
 
 @doc """
@@ -46,8 +46,8 @@ Returns all nodes in the cluster
     end
   end
 
-  def node_in_list({ip, node, data}) do
-    Enum.member?(List_name_pid.get_list, {ip, node, data})
+  def node_in_list(name) do
+    Enum.member?(NodeCollector.all_nodes, name)
   end
 
   def is_list_the_same do
@@ -56,9 +56,8 @@ Returns all nodes in the cluster
     Enum.sort(list) == Enum.sort(List_name_pid.get_list)
   end
 
-end
 
-defmodule ObserverMaster do
+
 
   @doc """
   Checks if the Node is the master.
@@ -108,7 +107,7 @@ defmodule Observer do
   """
     def beacon(a, beaconSocket) do
       :timer.sleep(1000 + :rand.uniform(500))
-      :ok = :gen_udp.send(beaconSocket, {255,255,255,255}, 45679, "#{inspect(a)}" )
+      :ok = :gen_udp.send(beaconSocket, {10,100,23,180}, 45679, "#{inspect a}" )
       beacon(a, beaconSocket)
     end
 end
@@ -140,48 +139,60 @@ This module receives a signal from a node, and add that node to the cluster.
 Node.ping String.to_atom(to_string(data))
   """
   def radar(radarSocket) do
+
+    #receive do
+    #  msg -> IO.puts "Received #{inspect msg}"
+    #after 1 ->
+    #end
     case :gen_udp.recv(radarSocket, 1000) do
       {:ok, {ip, _port, data}} ->
         name = String.to_atom(NodeCollector.get_full_name(ip))
         Node.ping name
-        case NodeCollector.node_in_list({ip, name, data}) do
-          false ->
-            List_name_pid.add_to_list({ip, name, data})
-            NodeCollector.am_I_master
-            Process.monitor(data)
-            end
-          true -> IO.puts "already in list"
-        end
       {:error, _} -> {:error, :could_not_receive}
     end
     radar(radarSocket)
   end
 
+  def pid(string) when is_binary(string) do
+    base = byte_size("#PID<")
+    full = string
+    new_string = binary_part(full, base, byte_size(full) - (base+1))
+   :erlang.list_to_pid('<#{new_string}>')
+  end
+
 end
 
-defmodule List_name_pid do
+defmodule Nodes do
+  use GenServer
 
   # create the genserver with an empty list
   def init do
-    {:ok, _} = start()
+    {:ok, _} = start_link()
   end
 
   def init(init_arg) do
     {:ok, init_arg}
   end
 
-  def start do
-    GenServer.start_link(__MODULE__, [], name: :genserver)
+  def start_link() do
+    GenServer.start_link(__MODULE__, [], name: :list_of_nodes)
   end
 
   def get_list do
-    GenServer.call(:genserver, :get_list)
+    GenServer.multi_call([node() | Node.list()],:list_of_nodes, :get_list)
   end
 
-  def add_to_list({ip, name, pid}) do
-    GenServer.cast(:genserver, {:add_to_list, {ip, name, pid}})
-    Enum.sort(get_list)
+  def add_to_list(name) do
+    GenServer.cast(:list_of_nodes, {:add_to_list, name})
+    #Enum.sort(get_list)
   end
+
+  def get_bad_list(liste) do
+    bad_nodes = Enum.at(liste,1)
+    GenServer.multi_call(liste, :list_of_nodes, :get_list)
+  end
+
+
 
   # -------------CAST AND CALLS -----------------
 
@@ -189,7 +200,10 @@ defmodule List_name_pid do
     {:reply, list, list}
   end
 
-  def handle_cast({:add_to_list, {ip, name, pid}}, list) do
-    {:noreply, list ++ [{ip, name, pid}]}
+  def handle_cast({:add_to_list, name}, list) do
+    {:noreply, list ++ name}
   end
+
 end
+#get_ip_of_bad_node
+#delete_bad_nodes

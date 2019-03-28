@@ -14,14 +14,16 @@ defmodule Elevatorm do
         # connect_FSM()
         {:ok, pid_FSM} = ElevatorFSM.start_link()
         IO.puts("FSM started")
-        go_to_know_state(pid_FSM, pid_driver, pid_distributor)
-        retrieve_local_backup(self(), pid_distributor)
+        go_to_know_state(pid_driver, pid_distributor)
+        retrieve_local_backup()
         IO.puts("Spawn collectors")
         pid_elevator = self()
-        ElevatorFSM.send_status(pid_FSM, pid_distributor, pid_elevator)
+        ElevatorFSM.send_status( pid_distributor, pid_elevator)
 
         pid_order_collector =
-          spawn(fn -> ElevatorFSM.order_collector(pid_elevator, pid_driver, pid_distributor) end)
+          spawn(fn ->
+            ElevatorFSM.order_collector(pid_elevator, pid_driver, pid_distributor)
+          end)
 
         pid_floor_collector =
           spawn(fn ->
@@ -65,7 +67,7 @@ defmodule Elevatorm do
         end
 
         store_local_backup(complete_system)
-        {state, _floor, _movement} = ElevatorFSM.get_state(pid_FSM)
+        {state, _floor, _movement} = ElevatorFSM.get_state()
         ip = get_my_local_ip()
         my_elevator = Enum.find(complete_system, fn elevator -> elevator.ip == ip end)
 
@@ -74,7 +76,7 @@ defmodule Elevatorm do
             order = List.first(my_elevator.orders).floor
             sender = self()
             spawn(fn -> elevator_loop(sender, pid_FSM, pid_driver, pid_distributor, order) end)
-            ElevatorFSM.send_status(pid_FSM, pid_distributor, self())
+            ElevatorFSM.send_status(pid_distributor, self())
           end
         end
 
@@ -92,21 +94,20 @@ defmodule Elevatorm do
   end
 
   def elevator_loop(sender, pid_FSM, pid_driver, pid_distributor, order) do
-    ElevatorFSM.new_order(pid_FSM, pid_driver, order)
+    ElevatorFSM.new_order(pid_driver, order)
 
-    {_state, current_floor, _movement} = ElevatorFSM.get_state(pid_FSM)
+    {_state, current_floor, _movement} = ElevatorFSM.get_state()
 
     if current_floor == order do
-      ElevatorFSM.arrived(pid_FSM, pid_driver)
-      ElevatorFSM.send_status(pid_FSM, pid_distributor, sender)
+      ElevatorFSM.send_status(pid_distributor, sender)
       open_doors(pid_driver)
-      ElevatorFSM.continue_working(pid_FSM)
-      ElevatorFSM.send_status(pid_FSM, pid_distributor, sender)
+      ElevatorFSM.continue_working()
+      ElevatorFSM.send_status(pid_distributor, sender)
       :timer.sleep(100)
       Process.exit(self(), :kill)
     end
 
-    ElevatorFSM.update_floor(pid_FSM, pid_driver)
+    ElevatorFSM.update_floor(pid_driver)
     :timer.sleep(100)
     elevator_loop(sender, pid_FSM, pid_driver, pid_distributor, order)
   end
@@ -118,25 +119,25 @@ defmodule Elevatorm do
     Moves the elevator to a known state in the case that the elevator is
     not exciting any floor sensor.
   """
-  def go_to_know_state(pid_FSM, pid_driver, pid_distributor) do
+  def go_to_know_state(pid_driver, pid_distributor) do
     IO.puts("Moving to know state")
 
     if Driver.get_floor_sensor_state(pid_driver) == :between_floors do
       IO.puts("==========between floors")
-      {_state, _floor, movement} = ElevatorFSM.get_state(pid_FSM)
+      {_state, _floor, movement} = ElevatorFSM.get_state()
 
       if movement != :down do
-        ElevatorFSM.set_status(pid_FSM, :MOVE, :unspecified, :down)
+        ElevatorFSM.set_status(:MOVE, :unspecified, :down)
         Driver.set_motor_direction(pid_driver, :down)
       end
 
-      go_to_know_state(pid_FSM, pid_driver, pid_distributor)
+      go_to_know_state(pid_driver, pid_distributor)
     else
       Driver.set_motor_direction(pid_driver, :stop)
       floor = Driver.get_floor_sensor_state(pid_driver)
-      ElevatorFSM.set_status(pid_FSM, :IDLE, floor, :idle)
+      ElevatorFSM.set_status(:IDLE, floor, :idle)
       IO.puts("==========Sending status")
-      ElevatorFSM.send_status(pid_FSM, pid_distributor, self())
+      ElevatorFSM.send_status(pid_distributor, self())
       :ok
     end
   end
@@ -146,7 +147,7 @@ defmodule Elevatorm do
     previous status that was stored in the backup. It also send the backup file
     to the
   """
-  def retrieve_local_backup(sender, pid_distributor) do
+  def retrieve_local_backup do
     case File.read("local_backup") do
       {:ok, data} ->
         IO.puts("
@@ -157,8 +158,9 @@ defmodule Elevatorm do
         my_elevator = Enum.find(complete_system, fn elevator -> elevator.ip == ip end)
         IO.puts("My elevator system retrieved : #{inspect(complete_system)}")
         IO.puts("Sending backup the elevator to the distributor")
-        send(pid_distributor, {:elevator_backup, sender, my_elevator})
-
+        #send(pid_distributor, {:elevator_backup, sender, my_elevator})
+        IO.puts"Hey distributor,do I have to send you complete system or my elevator only?"
+        Distributor.send_backup(my_elevator)
       {:error, :enoent} ->
         IO.puts("
          £  There is no backup, lets create one
@@ -167,7 +169,9 @@ defmodule Elevatorm do
         ip = get_my_local_ip()
         my_elevator = Enum.find(complete_system, fn elevator -> elevator.ip == ip end)
         IO.puts("Sending backup the elevator to the distributor")
-        send(pid_distributor, {:elevator_backup, sender, my_elevator})
+        #send(pid_distributor, {:elevator_backup, sender, my_elevator})
+        IO.puts"Hey distributor,do I have to send you complete system or my elevator only?"
+        Distributor.send_backup(my_elevator)
 
       unspected ->
         IO.puts("Unespected read result : #{inspect(unspected)}")
