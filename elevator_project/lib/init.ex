@@ -6,16 +6,7 @@ defmodule Init do
   list to all elevators.
   """
 
-  def get_my_ip do
-    {:ok, socket} = :gen_udp.open(6789, [active: false, broadcast: true])
-    :ok = :gen_udp.send(socket, {255,255,255,255}, 6789, "test packet")
-    ip = case :gen_udp.recv(socket, 100, 1000) do
-      {:ok, {ip, _port, _data}} -> ip
-      {:error, _} -> {:error, :could_not_get_ip}
-    end
-    :gen_udp.close(socket)
-    ip
-  end
+
 
   def ip_to_string ip do
       :inet.ntoa(ip) |> to_string()
@@ -26,14 +17,19 @@ defmodule Init do
   it broadcasts itself.
   """
   def init(tick_time \\ 15000) do
-    ip = get_my_ip() |> ip_to_string()
+    ip = Nodes.get_my_ip() |> ip_to_string()
     full_name = "heis" <> "@" <> ip
     Node.start(String.to_atom(full_name), :longnames, tick_time)
     Node.set_cookie :hello
     a = self()
-    List_name_pid.start
-    spawn fn -> Beacon.start_link(a) end
+
+    #spawn fn -> Beacon.start_link(a) end
     spawn fn -> Radar.start_link end
-    spawn fn -> Nodes.start_link end
+    #:timer.sleep(2000)
+
+    spawn fn -> Nodes.start_link() end
+    spawn fn -> Global_list.start_link end
+
+    #Nodes.add_to_list(self())
   end
 end

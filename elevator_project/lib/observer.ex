@@ -10,10 +10,6 @@ sorted by IP.
 
 """
 
-  def hello do
-    :world
-  end
-
   def ip_to_string ip do
     :inet.ntoa(ip) |> to_string()
   end
@@ -23,18 +19,11 @@ sorted by IP.
     full_name = "heis" <> "@" <> s_ip
   end
 
-  def list_of_nodes do
-    sorted_list = all_nodes |> Enum.sort
-    for each_node <- sorted_list, do: tuple = {each_node, pid(each_node) |> elem(1) }
-  end
-
-  def pid(node) do
-    pid = Node.spawn_link node, fn ->
-      receive do
-        {:ping, client} -> send client, :pong
-      end
-    end
-    send pid, {:ping, self()}
+  def ip(node) do
+    string = to_string(node)
+    base = byte_size(":elevator@")-1
+    new_string = binary_part(string, base, byte_size(string) -(base+1))
+    ip = :inet.parse_address(to_charlist(new_string))
   end
 
 @doc """
@@ -47,8 +36,8 @@ Returns all nodes in the cluster
     end
   end
 
-  def node_in_list({ip, node, data}) do
-    Enum.member?(List_name_pid.get_list, {ip, node, data})
+  def node_in_list(name) do
+    Enum.member?(NodeCollector.all_nodes, name)
   end
 
   def is_list_the_same do
@@ -65,7 +54,7 @@ Returns all nodes in the cluster
   test list every 3rd second for changes in the list.
   """
   def am_I_master do
-    if Node.self() == Enum.at(Enum.at(List_name_pid.get_list,0),1) do #yes
+    if Node.self() == Enum.at(Enum.sort(all_nodes)) do #yes
       IO.puts "Im master"
       IO.puts "send the list"
     end
@@ -108,7 +97,7 @@ defmodule Observer do
   """
     def beacon(a, beaconSocket) do
       :timer.sleep(1000 + :rand.uniform(500))
-      :ok = :gen_udp.send(beaconSocket, {10,100,23,180}, 45679, a )
+      :ok = :gen_udp.send(beaconSocket, {10,100,23,180}, 45679, "#{inspect a}" )
       beacon(a, beaconSocket)
     end
 end
@@ -141,20 +130,32 @@ Node.ping String.to_atom(to_string(data))
   """
   def radar(radarSocket) do
 
-    #receive do
-    #  msg -> IO.puts "Received #{inspect msg}"
-    #after 1 ->
-    #end
+    receive do
+      {msg, :gone} -> IO.puts "Received #{inspect msg}"
+    after 1 ->
+    end
+
     case :gen_udp.recv(radarSocket, 1000) do
       {:ok, {ip, _port, data}} ->
+
         name = String.to_atom(NodeCollector.get_full_name(ip))
         Node.ping name
-        pid = pid(to_string(data))
-        case NodeCollector.node_in_list({ip, name, pid}) do
+        case NodeCollector.node_in_list(name) do
           false ->
+            case NodeCollector.am_I_master do
+              true -> Nodes.get_list
+            end
 
-            List_name_pid.add_to_list({ip, name, data})
-            NodeCollector.am_I_master
+
+        #current = self()
+        #Process.spawn_monitor(fn -> send(current,{self(), :gone}) end)
+
+        #pid = pid(to_string(data))
+        #case NodeCollector.node_in_list({ip, name, pid}) do
+        #  false ->
+
+        #    List_name_pid.add_to_list({ip, name, data})
+        #    NodeCollector.am_I_master
             #IO.puts "I am data #{inspect data}
             #am i a binary? #{inspect is_binary(to_string(data))}
             #am i a list? #{inspect is_list(data)}
@@ -165,12 +166,13 @@ Node.ping String.to_atom(to_string(data))
             #pid_monitor = Process.monitor(pid(to_string(data)), true)
 
             #IO.puts "Monitor spawned with reference #{inspect pid_monitor} "
-          true -> IO.puts "already in list"
-        end
-      {:error, _} -> {:error, :could_not_receive}
-    end
+        #  true -> IO.puts "already in list"
+        #monitor = Process.monitor(pid(to_string(data)))
+        {:error, _} -> {:error, :could_not_receive}
+      end
     radar(radarSocket)
   end
+end
 
   def pid(string) when is_binary(string) do
     base = byte_size("#PID<")
@@ -186,29 +188,37 @@ defmodule Nodes do
 
   # create the genserver with an empty list
   def init do
-    {:ok, _} = start()
+    {:ok, _} = start_link()
   end
 
   def init(init_arg) do
     {:ok, init_arg}
   end
 
-  def start_link do
-    GenServer.start_link(__MODULE__, [], name: list_of_nodes)
+  def start_link() do
+    GenServer.start_link(__MODULE__, [], name: :list_of_nodes)
   end
 
   def get_list do
-    GenServer.call(list_of_nodes, :get_list)
+    GenServer.multi_call([node() | Node.list()],:list_of_nodes, :get_list)
   end
 
-  def add_to_list({ip, name, pid}) do
-    GenServer.cast(list_of_nodes, {:add_to_list, {ip, name, pid}})
-    Enum.sort(get_list)
+  def add_to_list(name) do
+    GenServer.cast(:list_of_nodes, {:add_to_list, name})
+    #Enum.sort(get_list)
   end
 
-  def get_all do
-    Genserver.multi_call(list_of_nodes)
+  def get_my_ip do
+    {:ok, socket} = :gen_udp.open(6789, [active: false, broadcast: true])
+    :ok = :gen_udp.send(socket, {255,255,255,255}, 6789, "test packet")
+    ip = case :gen_udp.recv(socket, 100, 1000) do
+      {:ok, {ip, _port, _data}} -> ip
+      {:error, _} -> {:error, :could_not_get_ip}
+    end
+    :gen_udp.close(socket)
+    ip
   end
+
 
   # -------------CAST AND CALLS -----------------
 
@@ -216,43 +226,69 @@ defmodule Nodes do
     {:reply, list, list}
   end
 
-  def handle_cast({:add_to_list, {ip, name, pid}}, list) do
-    {:noreply, list ++ [{ip, name, pid}]}
+  def handle_cast({:add_to_list, name}, list) do
+    {:noreply, list ++ [name]}
   end
+
+end
+#get_ip_of_bad_node
+#delete_bad_nodes
+#get_name_and_pid
+
+defmodule Global_list do
+  use GenServer
+
+  def init do
+    {:ok, _} = start_link()
+  end
+
+  def init(init_arg) do
+    {:ok, init_arg}
+  end
+
+  def start_link() do
+    GenServer.start_link(__MODULE__, [], name: :global_list)
+  end
+
+  def get_top do
+    GenServer.call(:global_list, :pop)
+  end
+
+  def add(item) do
+    GenServer.cast(:global_list, {:push, item})
+  end
+
+  def get_list do
+    GenServer.multi_call([node() | Node.list()],:global_list, :pop)
+  end
+
+
+  #-----------
+  def handle_call(:pop, _form, [head | tail]) do
+    {:reply, head, tail}
+  end
+
+  def handle_cast({:push, item}, state) do
+    {:noreply, [item | state]}
+  end
+
 end
 
+defmodule Monitor do
+  use GenServer
+  require Logger
 
-defmodule List_name_pid do
+  def start_link(opts \\ []) do
+   GenServer.start_link(__MODULE__, [], opts)
+ end
 
-  # create the genserver with an empty list
-  def init do
-    {:ok, _} = start()
-  end
+ def init(_) do
+   :ok = :net_kernel.monitor_nodes(true)
+   IO.puts "Monitoring!"
+ end
 
-  def init(init_arg) do
-    {:ok, init_arg}
-  end
-
-  def start do
-    GenServer.start_link(__MODULE__, [], name: :genserver)
-  end
-
-  def get_list do
-    GenServer.call(:genserver, :get_list)
-  end
-
-  def add_to_list({ip, name, pid}) do
-    GenServer.cast(:genserver, {:add_to_list, {ip, name, pid}})
-    Enum.sort(get_list)
-  end
-
-  # -------------CAST AND CALLS -----------------
-
-  def handle_call(:get_list, _from, list) do
-    {:reply, list, list}
-  end
-
-  def handle_cast({:add_to_list, {ip, name, pid}}, list) do
-    {:noreply, list ++ [{ip, name, pid}]}
-  end
+ def handle_info({:nodedown, node}, retry_set) do
+   Logger.info "Node #{node} is down"
+   {:noreply, retry_set}
+ end
 end
