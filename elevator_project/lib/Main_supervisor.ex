@@ -1,129 +1,139 @@
+defmodule Stack do
+  use GenServer
+
+  def start_link(state) do
+    GenServer.start_link(__MODULE__, state, name: __MODULE__)
+  end
+
+  ## Callbacks
+
+  @impl true
+  def init(stack) do
+    {:ok, stack}
+  end
+
+  @impl true
+  def handle_call(:pop, _from, [head | tail]) do
+    {:reply, head, tail}
+  end
+
+  @impl true
+  def handle_cast({:push, head}, tail) do
+    {:noreply, [head | tail]}
+  end
+end
+
+defmodule Utilities do
+
+    def ip_to_string ip do
+      :inet.ntoa(ip) |> to_string()
+    end
+
+    def get_full_name(ip) do
+      s_ip = ip |> ip_to_string()
+      full_name = "heis" <> "@" <> s_ip
+    end
+
+  @doc """
+  Returns all nodes in the cluster
+  """
+    def all_nodes do
+      case [Node.self | Node.list] do
+        nodes -> nodes
+      end
+    end
+
+    def node_in_list(name) do
+      Enum.member?(all_nodes, name)
+    end
+
+    def am_I_master do
+      Node.self() == Enum.at(Enum.sort(all_nodes), 0)
+    end
+
+end
+
+defmodule Init.Application do
+    use Application
+
+    def start() do
+        children = [
+            {Main.Supervisor, []}
+        ]
+        {:ok, pid} = Supervisor.start_link(children,strategy: :one_for_one)
+    end
+
+end
+
 defmodule Main.Supervisor do
-
-  use Supervisor
-  def start_link(args) do
-    Supervisor.start_link(__MODULE__, args, name: __MODULE__)
-    IO.puts "heisann"
-  end
-
-  def init(_args) do
-    IO.puts "her"
-    #children = [
-    #  {Monitor, []},
-    #  {Network, [45679]},
-    #  {Task.Supervisor, name: Auction.Supervisor}
-    #  ]
-    children = [
-      %{
-        id: Distributor,
-        start: {Distributor, :start_link}
-        #restart: when restart killed process,
-        #shutdown: how to be terminated,
-        #type: worker or supervisor (default worker)
-      }
-    ]
-
-    opts = [strategy: :one_for_one]
-    IO.puts "her"
-    Supervisor.init(children, opts)
-  end
-end
-
-
-
-defmodule Network do
+  # Automatically defines child_spec/1
   use Supervisor
 
-  def start_link([recv_port]) do
-    Supervisor.start_link(__MODULE__,[recv_port],  name: :network)
-    IO.puts "VEL?"
+  def start_link(init_arg) do
+    Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__)
   end
 
-  def init([recv_port]) do
-    IO.puts "her"
+  @impl true
+  def init(_init_arg) do
     children = [
-      {UDP_Beacon, [recv_port]},
-      {UDP_Radar, [recv_port]}
+      {Monitor, []},
+      {UDP_Beacon, [45678]},
+      {UDP_Radar, [45679]}
     ]
-    IO.puts "nå?"
+
     Supervisor.init(children, strategy: :one_for_one)
-    IO.puts "HERE"
   end
 end
-
 
 defmodule UDP_Beacon do
-  use GenServer
-  @beacon_port 45678
-  @radar_port 45679
+  use Task
 
-@doc """
-start_link(port) boots a server process
-"""
-  def start_link(port \\ 45678) do
+
+  def start_link(port) do
     IO.puts "yessir"
-    GenServer.start_link(__MODULE__, port)
+    Task.start_link(__MODULE__, :init, port)
   end
 
-  @doc """
-  init(port) initialize the transmitter.
-  The initialization runs inside the server process right after it boots
-defmodule Observer do
-  """
-    def init(port) do
-      {:ok, beaconSocket} = :gen_udp.open(45678, [active: false, broadcast: true])
-      beacon(beaconSocket)
-    end
+  @impl true
+  def init(port) do
+    {:ok, beaconSocket} = :gen_udp.open(port, [active: false, broadcast: true])
+    beacon(beaconSocket)
+  end
 
-  @doc """
-  beacon(beaconSocket) takes in a socket number.
-  It sleep for a random amount of time, and then beacons out its own information.
-  Then it recall itself
-  Changed from Node.self()
-  10,22,77,209
-  {inspect(self())}
-  """
-    def beacon(beaconSocket) do
-      :timer.sleep(1000 + :rand.uniform(500))
-      :ok = :gen_udp.send(beaconSocket, {10,100,23,242}, 45679, "package" )
-      IO.puts "sent"
-      beacon(beaconSocket)
-    end
+
+  def beacon(beaconSocket) do
+    :timer.sleep(1000 + :rand.uniform(500))
+    :ok = :gen_udp.send(beaconSocket, {10,22,78,63}, 45679, "package" )
+    IO.puts "sent"
+    beacon(beaconSocket)
+  end
 end
 
 defmodule UDP_Radar do
-  use GenServer
-  @radar_port 45679
-  @doc """
-  start_link(port) boots a server process
-  """
-  def start_link(port \\ 45679) do
+  use Task
+
+  def start_link(port) do
     IO.puts "yessir"
-    GenServer.start_link(__MODULE__, port)
+    Task.start_link(__MODULE__, :init, port)
   end
 
-  @doc """
-  radar() initialize the reciever.
-  """
+
+  @impl true
   def init(port) do
     {:ok, radarSocket} = :gen_udp.open(port, [active: false, broadcast: true])
     radar(radarSocket)
   end
 
-  @doc """
-  radar(radarSocket) listen for messages sent to its socket.
-  If it receive a message from a new node, it should add this node to the cluster.
-Node.ping String.to_atom(to_string(data))
-  """
+
   def radar(radarSocket) do
     case :gen_udp.recv(radarSocket, 1000) do
       {:ok, {ip, _port, data}} ->
         IO.puts "received"
-        name = String.to_atom(NodeCollector.get_full_name(ip))
+        name = String.to_atom(Utilities.get_full_name(ip))
         Node.ping name
-        case NodeCollector.node_in_list(name) do
+        case Utilities.node_in_list(name) do
           false ->
-            case NodeCollector.am_I_master do
+            case Utilities.am_I_master do
               true -> Nodes.get_list
             end
           end
@@ -139,12 +149,12 @@ defmodule Monitor do
   require Logger
 
   def start_link(opts \\ []) do
-   GenServer.start_link(__MODULE__, [], opts)
+   GenServer.start_link(__MODULE__, opts, name: __MODULE__)
  end
-
- def init([]) do
+ @impl true
+ def init(state) do
+    IO.puts "Monitoring!"
    :ok = :net_kernel.monitor_nodes(true)
-   IO.puts "Monitoring!"
    {:ok, state}
  end
 
@@ -154,3 +164,4 @@ defmodule Monitor do
  end
 
 end
+#  {Task.Supervisor, name: Auction.Supervisor}
