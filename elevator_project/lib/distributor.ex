@@ -19,6 +19,7 @@ defmodule Distributor do
     IO.puts("DIST start pid: #{inspect(self())}")
     {:ok, pid_genserver} = start_server()
     IO.puts("Pid genserver: #{inspect(pid_genserver)}")
+    IO.puts("List of nodes is: #{inspect Nodes.get_list()}")
     Enum.map(Nodes.get_list(), fn ip -> Elevator.init(ip) end)
     |> update_complete_list()
     |> multi_call_reply_handling()
@@ -60,25 +61,25 @@ defmodule Distributor do
   end
 
   def add_to_complete_list(new_elevator) do
-    if Observer.is_master(Nodes.get_my_ip()) do
+    if NodeCollector.is_master() do
       GenServer.multi_call(Nodes.get_list(), :genserver, {:add_to_complete_list, new_elevator})
     end
   end
 
   def update_complete_list(new_list) do
-    if Observer.is_master(Nodes.get_my_ip()) do
+    if NodeCollector.is_master() do
       GenServer.multi_call(Nodes.get_list(), :genserver, {:update_complete_list, new_list})
     end
   end
 
   def replace_elevator_in_complete_list(new_elevator, ip) do
-    if Observer.is_master(Nodes.get_my_ip()) do
+    if NodeCollector.is_master() do
       GenServer.multi_call(Nodes.get_list(), :genserver, {:replace_elevator_in_complete_list, new_elevator, ip})
     end
   end
 
   def delete_elevator_in_complete_list(elevator) do
-    if Observer.is_master(Nodes.get_my_ip()) do
+    if NodeCollector.is_master() do
       GenServer.multi_call(Nodes.get_list(), :genserver, {:delete_elevator_in_complete_list, elevator})
     end
   end
