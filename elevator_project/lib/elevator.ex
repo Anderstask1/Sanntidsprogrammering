@@ -2,114 +2,77 @@ defmodule Elevatorm do
   @moduledoc """
   This is the Elevator module
   """
-  def start_working do
-    IO.puts("I am listening with pid #{inspect(self())}")
+  def start do
+    {:ok, pid_driver} = Driver.start()
+    IO.puts("Driver connected")
+    {:ok, pid_FSM} = ElevatorFSM.start_link()
+    IO.puts("FSM started")
+    go_to_know_state(pid_driver)
+    retrieve_local_backup()
+    IO.puts("Spawn collectors")
+    pid_elevator = self()
+    ElevatorFSM.send_status()
 
-    receive do
-      {:ok, pid_distributor, _} ->
-        IO.puts("Empty list received from distributor #{inspect(pid_distributor)}")
-        # setup driver connection
-        {:ok, pid_driver} = Driver.start()
-        IO.puts("Driver connected")
-        # connect_FSM()
-        {:ok, pid_FSM} = ElevatorFSM.start_link()
-        IO.puts("FSM started")
-        go_to_know_state(pid_driver, pid_distributor)
-        retrieve_local_backup()
-        IO.puts("Spawn collectors")
-        pid_elevator = self()
-        ElevatorFSM.send_status( pid_distributor, pid_elevator)
+    pid_order_collector = spawn(fn -> ElevatorFSM.order_collector(pid_driver) end)
+    pid_floor_collector = spawn(fn -> ElevatorFSM.floor_collector(pid_driver, pid_FSM) end)
 
-        pid_order_collector =
-          spawn(fn ->
-            ElevatorFSM.order_collector(pid_elevator, pid_driver, pid_distributor)
-          end)
-
-        pid_floor_collector =
-          spawn(fn ->
-            ElevatorFSM.floor_collector(pid_elevator, pid_driver, pid_distributor, pid_FSM)
-          end)
-
-        IO.puts("Entering receiving loop")
-        IO.puts("======================================")
-        IO.puts("DISTRIBUTOR      #{inspect(pid_distributor)}")
-        IO.puts("DRIVER           #{inspect(pid_driver)}")
-        IO.puts("FSM_ELEVATOR     #{inspect(pid_FSM)}")
-        IO.puts("ELEVATOR         #{inspect(pid_elevator)}")
-        IO.puts("ORDER COLLECTOR  #{inspect(pid_order_collector)}")
-        IO.puts("FLOOR COLLECTOR  #{inspect(pid_floor_collector)}")
-        IO.puts("======================================")
-        all_pids=[pid_order_collector,pid_floor_collector,pid_FSM, pid_driver]
-        receive_orders_loop(pid_distributor, pid_FSM, pid_driver, all_pids)
-
-      message ->
-        IO.puts(
-          "Error elevator module: unexpected message before initialization #{inspect(message)}"
-        )
-    end
+    IO.puts("======================================")
+    IO.puts("=DRIVER           #{inspect(pid_driver)}")
+    IO.puts("=FSM_ELEVATOR     #{inspect(pid_FSM)}")
+    IO.puts("=ELEVATOR         #{inspect(pid_elevator)}")
+    IO.puts("=ORDER COLLECTOR  #{inspect(pid_order_collector)}")
+    IO.puts("=FLOOR COLLECTOR  #{inspect(pid_floor_collector)}")
+    IO.puts("======================================")
+    all_pids=[pid_order_collector,pid_floor_collector,pid_FSM, pid_driver]
+    IO.puts("Entering executing my orders loop")
+    executing_orders_loop(pid_FSM, pid_driver, all_pids,[])
   end
 
-  def receive_orders_loop(pid_distributor, pid_FSM, pid_driver, all_pids) do
-    receive do
-      {:ok, killer, :harakiri} ->
-        if killer == pid_distributor do
-          Enum.map(all_pids, fn pid -> Process.exit(pid, :kill) end)
-          IO.puts "Bye ;( "
-          Process.exit(self(), :kill)
-        else
-          IO.puts "A process different to my distributor wants me to kill myself :(  "
+  def executing_orders_loop(pid_FSM, pid_driver, all_pids, previus_lights) do
+    complete_system = Distributor.get_complete_list()
+    ip = get_my_local_ip()
+    my_elevator = Enum.find(complete_system, fn elevator -> elevator.ip == ip end)
+    if my_elevator.harakiri do
+      #I have to kill myself
+      Enum.map(all_pids, fn pid -> Process.exit(pid, :kill) end)
+      IO.puts "Bye ;( "
+      Process.exit(self(), :kill)
+    else
+      #I can work normally
+      store_local_backup(complete_system)
+      IO.puts("ELEVATOR received complete system received and has backup it")
+      {_state, _floor, movement} = ElevatorFSM.get_state()
+      ip = get_my_local_ip()
+      my_elevator = Enum.find(complete_system, fn elevator -> elevator.ip == ip end)
+      if movement == :idle do
+        if my_elevator.orders != [] do
+          order = List.first(my_elevator.orders).floor
+          spawn(fn -> elevator_loop(pid_FSM, pid_driver, order) end)
+          ElevatorFSM.send_status()
         end
-      {:ok, pid_sender, complete_system} ->
-        IO.puts("Elevator received complete system received ")
-
-        if pid_sender != pid_distributor do
-          IO.puts("Elevator receiving a complete_system from an unexpected distributor")
-        end
-
-        store_local_backup(complete_system)
-        {state, _floor, _movement} = ElevatorFSM.get_state()
-        ip = get_my_local_ip()
-        my_elevator = Enum.find(complete_system, fn elevator -> elevator.ip == ip end)
-
-        if state == :IDLE do
-          if my_elevator.orders != [] do
-            order = List.first(my_elevator.orders).floor
-            sender = self()
-            spawn(fn -> elevator_loop(sender, pid_FSM, pid_driver, pid_distributor, order) end)
-            ElevatorFSM.send_status(pid_distributor, self())
-          end
-        end
-
-        light_orders = my_elevator.lights
-
-        if light_orders != [] do
-          IO.puts("----- HANDLE LIGHTS #{inspect(light_orders)}")
-          Enum.map(light_orders, fn x -> action_light(x, pid_driver) end)
-        end
-    after
-      9_000 -> IO.puts("No orders received after 9 seconds")
+      end
+      light_orders = my_elevator.lights
+      if light_orders != [] and light_orders != previus_lights do
+        IO.puts("----- HANDLE LIGHTS")
+        Enum.map(light_orders, fn x -> action_light(x, pid_driver) end)
+      end
     end
-
-    receive_orders_loop(pid_distributor, pid_FSM, pid_driver, all_pids)
+    executing_orders_loop(pid_FSM, pid_driver, all_pids, my_elevator.lights)
   end
 
-  def elevator_loop(sender, pid_FSM, pid_driver, pid_distributor, order) do
-    ElevatorFSM.new_order(pid_driver, order)
-
+  def elevator_loop(pid_FSM, pid_driver, order) do
     {_state, current_floor, _movement} = ElevatorFSM.get_state()
-
+    ElevatorFSM.new_order(pid_driver, order)
     if current_floor == order do
-      ElevatorFSM.send_status(pid_distributor, sender)
+      ElevatorFSM.arrived(pid_driver)
       open_doors(pid_driver)
       ElevatorFSM.continue_working()
-      ElevatorFSM.send_status(pid_distributor, sender)
       :timer.sleep(100)
+      ElevatorFSM.send_status()
       Process.exit(self(), :kill)
     end
-
-    ElevatorFSM.update_floor(pid_driver)
     :timer.sleep(100)
-    elevator_loop(sender, pid_FSM, pid_driver, pid_distributor, order)
+    elevator_loop(pid_FSM, pid_driver, order)
   end
 
   ###############################################################################
@@ -119,7 +82,7 @@ defmodule Elevatorm do
     Moves the elevator to a known state in the case that the elevator is
     not exciting any floor sensor.
   """
-  def go_to_know_state(pid_driver, pid_distributor) do
+  def go_to_know_state(pid_driver) do
     IO.puts("Moving to know state")
 
     if Driver.get_floor_sensor_state(pid_driver) == :between_floors do
@@ -131,13 +94,12 @@ defmodule Elevatorm do
         Driver.set_motor_direction(pid_driver, :down)
       end
 
-      go_to_know_state(pid_driver, pid_distributor)
+      go_to_know_state(pid_driver)
     else
       Driver.set_motor_direction(pid_driver, :stop)
       floor = Driver.get_floor_sensor_state(pid_driver)
       ElevatorFSM.set_status(:IDLE, floor, :idle)
       IO.puts("==========Sending status")
-      ElevatorFSM.send_status(pid_distributor, self())
       :ok
     end
   end
@@ -165,10 +127,10 @@ defmodule Elevatorm do
         IO.puts("
          £  There is no backup, lets create one
          ")
-        complete_system = CreateList.init_list_fake(get_my_local_ip(), self())
+        complete_system = CompleteSystem.init_list(get_my_local_ip())
         ip = get_my_local_ip()
         my_elevator = Enum.find(complete_system, fn elevator -> elevator.ip == ip end)
-        IO.puts("Sending backup the elevator to the distributor")
+        IO.puts("Sending backup from elevator to the distributor")
         #send(pid_distributor, {:elevator_backup, sender, my_elevator})
         IO.puts"Hey distributor,do I have to send you complete system or my elevator only?"
         Distributor.send_backup(my_elevator)
@@ -233,5 +195,250 @@ defmodule Elevatorm do
 
   def action_light(light, pid) do
     Driver.set_order_button_light(pid, light.type, light.floor, light.state)
+  end
+end
+
+defmodule ElevatorFSM do
+  use GenServer
+
+  @bottom_floor 0
+  @top_floor 3
+
+  @moduledoc """
+  This is the Finite State Machine module of the elevator. This keeps track of
+  the state of the elevator cabin.
+
+  This module implments a FSM with 3 main states:
+    :IDLE
+    :MOVE
+    :ARRIVED_FLOOR
+  -> Inside the :MOVE status the cab can be :idle, :up and :down .
+  -> The FSM includes the floor as well.
+
+    The state of the FSM is managed in a tuple-form-state, this tuple stores the
+    following vales:
+
+      state = {status, floor, movement}
+
+        ->status describes the main state (:IDLE, :MOVE or :ARRIVED_FLOOR)
+
+        ->floor stores the current floor of the cab, it is important to note
+        that the floor value is always a integer representing the number of
+        the floor. If the cab is between floors the Driver interface return
+        the atom :between_floors but this module do not update the floor if
+        called with this value.
+
+        ->movement describe the movement of the cab, can be :idle,
+        :up or :down
+  """
+
+  def start_link() do
+    GenServer.start_link(ElevatorFSM, {:IDLE, :unknow_floor, :idle}, name: :genelevator)
+  end
+
+  # set the initial state
+  def init(initial_data) do
+    {:ok, initial_data}
+  end
+
+  def get_state() do#used
+    GenServer.call(:genelevator, :get_state)
+  end
+
+  def update_movement(new_movement) do
+    GenServer.cast(:genelevator, {:update_movement, new_movement})
+  end
+
+  def update_floor(pid_driver) do
+    GenServer.cast(:genelevator, {:update_floor, pid_driver})
+  end
+
+  def arrived(pid_driver) do
+    GenServer.cast(:genelevator, {:arrived, pid_driver})
+  end
+
+  def continue_working() do#used
+    GenServer.cast(:genelevator, :continue_working)
+  end
+
+  def still_in_previous_order() do
+    GenServer.cast(:genelevator, :still_in_previous_order)
+  end
+
+  def new_order(pid_driver, order) do#used
+    GenServer.cast(:genelevator, {:new_order, pid_driver, order})
+  end
+
+  def set_status(state, floor, movement) do
+    GenServer.cast(:genelevator, {:set_status, state, floor, movement})
+  end
+
+  def send_status() do#used
+    IO.puts("Inside send_status")
+    GenServer.cast(:genelevator, :send_status)
+  end
+
+  # ========== CAST AND CALLS ==========================
+
+  def handle_call(:get_state, _from, state) do
+    {:reply, state, state}
+  end
+
+  def handle_cast({:update_movement, new_movement}, {state, floor, movement}) do
+    if new_movement == movement do
+      {:noreply, {state, floor, movement}}
+    else
+      if new_movement == :idle do
+        {:noreply, {:IDLE, floor, new_movement}}
+      else
+        {:noreply, {:MOVE, floor, new_movement}}
+      end
+    end
+  end
+
+  def handle_cast({:update_floor, pid_driver}, {state, floor, movement}) do
+    new_floor = Driver.get_floor_sensor_state(pid_driver)
+    if floor == :unknow_floor do
+      # IO.puts "Unknown floor"
+    end
+
+    if new_floor == :between_floors do
+      {:noreply, {state, floor, movement}}
+    else
+      {:noreply, {state, new_floor, movement}}
+    end
+  end
+
+  def handle_cast({:arrived, pid_driver}, {_state, floor, _movement}) do
+    Driver.set_motor_direction(pid_driver, :stop)
+    {:noreply, {:ARRIVED_FLOOR, floor, :idle}}
+  end
+
+  def handle_cast(:continue_working, {_state, floor, _movement}) do
+    {:noreply, {:IDLE, floor, :idle}}
+  end
+
+  def handle_cast(:still_in_previous_order, {_state, floor, movement}) do
+    {:noreply, {:ARRIVED_FLOOR, floor, movement}}
+  end
+
+  def handle_cast({:new_order, pid_driver, order}, {_state, floor, movement}) do
+    if order != floor do
+      if movement == :idle do
+        if order > floor do
+          Driver.set_motor_direction(pid_driver, :up)
+          {:noreply, {:MOVE, floor, :up}}
+        else
+          Driver.set_motor_direction(pid_driver, :down)
+          {:noreply, {:MOVE, floor, :down}}
+        end
+      else
+        {:noreply, {:IDLE, floor, :idle}}
+      end
+    end
+  end
+
+  def handle_cast({:set_status, state, floor, movement}, {_state, old_floor, _movement}) do
+    IO.puts("Status set to  #{inspect(state)} / #{inspect(floor)}  /#{inspect(movement)}")
+
+    if floor == :between_floors do
+      {:noreply, {state, old_floor, movement}}
+    else
+      {:noreply, {state, floor, movement}}
+    end
+  end
+
+  def handle_cast(:send_status, {state, floor, movement}) do
+    IO.puts("Elevator sending(via send_status) to distributor #{inspect(State.init(movement, floor))}")
+    # send(pid_distributor, {:state, sender, State.init(movement, floor)})
+    Distributor.send_state(State.init(movement, floor))
+    {:noreply, {state, floor, movement}}
+  end
+
+  # ===============================================================================
+  # =================    ADITIONAL UTILITIES           ============================
+  # ===============================================================================
+
+  @doc """
+    This function runs the loop the recursive function order_collector/5 with an
+    empty previus orders.
+  """
+  def order_collector(pid_driver) do
+    order_collector(pid_driver, [], [], [])
+  end
+
+  @doc """
+    This function runs in loop indefinitely constantly asking to the Elevator
+    Driver if there is any buttom pushed. If so, the loop send the order to the
+    distributor using the function send_buttons/3.
+  """
+  def order_collector(
+        pid_driver,
+        previous_cabs,
+        previous_up,
+        previous_down
+      ) do
+    cabs =
+      Enum.filter(@bottom_floor..@top_floor, fn x ->
+        Driver.get_order_button_state(pid_driver, x, :cab) == 1
+      end)
+
+    if cabs != [] do
+      send_buttons(:cab, cabs, previous_cabs)
+    end
+
+    hall_up =
+      Enum.filter(@bottom_floor..@top_floor, fn x ->
+        Driver.get_order_button_state(pid_driver, x, :hall_up) == 1
+      end)
+
+    if hall_up != [] do
+      send_buttons(:hall_up, hall_up, previous_up)
+    end
+
+    hall_down =
+      Enum.filter(@bottom_floor..@top_floor, fn x ->
+        Driver.get_order_button_state(pid_driver, x, :hall_down) == 1
+      end)
+
+    if hall_down != [] do
+      send_buttons(:hall_down, hall_down, previous_down)
+    end
+
+    order_collector(pid_driver, cabs, hall_up, hall_down)
+  end
+
+  @doc """
+    This function send to the distributor the buttoms that are pushed if the
+    buttoms are different from the previous pushes. This is done to avoid
+    sending redundant orders. Returns :ok when the send is completed.
+  """
+  def send_buttons(button_type, floors, previous) do
+    if length(floors) == 1 and floors != previous do
+      Enum.map(floors, fn x ->
+        IO.puts(
+          "Elevator sending to distributor #{inspect(Order.init(button_type, x))}"
+        )
+        #send(pid_distributor, {:order, pid_send, Order.init(button_type, x)})
+        Distributor.send_order(Order.init(button_type, x))
+      end)
+    end
+  end
+
+  def floor_collector(pid_driver) do
+    floor_collector(pid_driver,Driver.get_floor_sensor_state(pid_driver))
+  end
+  def floor_collector(pid_driver, previous_floor) do
+    new_floor = Driver.get_floor_sensor_state(pid_driver)
+    if previous_floor != new_floor and new_floor != :between_floors do
+      update_floor(pid_driver)
+      Driver.set_floor_indicator(pid_driver, new_floor)
+      {_state, _floor, movement} = get_state()
+      IO.puts("Elevator sending to distributor the new floor #{inspect new_floor}")
+      # send(pid_distributor, {:state, sender, State.init(movement, new_floor)})
+      Distributor.send_state(State.init(movement, new_floor))
+    end
+
+    floor_collector(pid_driver, new_floor)
   end
 end

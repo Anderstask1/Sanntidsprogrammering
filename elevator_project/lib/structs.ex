@@ -60,14 +60,14 @@ defmodule Light do
 end
 
 defmodule Elevator do
-  defstruct [:ip, :pid, :state, :orders, :lights]
+  defstruct [:harakiri, :ip, :state, :orders, :lights]
 
-  def init(ip, pid) do
-    %Elevator{ip: ip, pid: pid, state: nil, orders: [], lights: []}
+  def init(ip) do
+    %Elevator{harakiri: false, ip: ip, state: nil, orders: [], lights: []}
   end
 
-  def init(ip, pid, state = %State{}, orders, lights) do
-    %Elevator{ip: ip, pid: pid, state: state, orders: orders, lights: lights}
+  def init(bool, ip, state = %State{}, orders, lights) do
+    %Elevator{harakiri: bool, ip: ip, state: state, orders: orders, lights: lights}
   end
 end
 
@@ -81,20 +81,39 @@ defmodule CompleteSystem do
     complete_list ++ [elevator]
     # |> Enum.sort(complete_list)
   end
+
+  def init_list(myip) do
+    state = State.init(:idle, 0)
+    orders = []
+
+    light1 = Light.init(:cab, 0, :off)
+    light2 = Light.init(:cab, 1, :off)
+    light3 = Light.init(:cab, 2, :off)
+    light4 = Light.init(:cab, 3, :off)
+    light5 = Light.init(:hall_up, 0, :off)
+    light6 = Light.init(:hall_up, 1, :off)
+    light7 = Light.init(:hall_up, 2, :off)
+    light8 = Light.init(:hall_down, 1, :off)
+    light9 = Light.init(:hall_down, 2, :off)
+    light10 = Light.init(:hall_down, 3, :off)
+
+    lights = [light1, light2, light3, light4, light5, light6, light7, light8, light9, light10]
+
+    ip1 = myip
+
+    elevator1 = Elevator.init(false, ip1, state, orders, lights)
+    [elevator1]
+  end
+
 end
 
 defmodule Pid do
   def init(x, y, z)
-      when is_integer(x) and x >= 0 and
-             is_integer(y) and y >= 0 and
-             is_integer(z) and z >= 0 do
+      when is_integer(x) and x >= 0 and is_integer(y) and y >= 0 and is_integer(z) and z >= 0 do
     :erlang.list_to_pid(
       '<' ++
         Integer.to_charlist(x) ++
-        '.' ++
-        Integer.to_charlist(y) ++
-        '.' ++
-        Integer.to_charlist(z) ++ '>'
+        '.' ++ Integer.to_charlist(y) ++ '.' ++ Integer.to_charlist(z) ++ '>'
     )
   end
 end
@@ -140,9 +159,8 @@ defmodule CreateList do
     lights = [light1, light2, light3]
 
     ip = {10, 100, 23, 151}
-    pid = Pid.init(0, 109, 0)
 
-    Elevator.init(ip, pid, state, orders, lights)
+    Elevator.init(false, ip, state, orders, lights)
   end
 
   def init_list do
@@ -161,9 +179,8 @@ defmodule CreateList do
     lights = [light1, light2, light3]
 
     ip1 = {10, 100, 23, 151}
-    pid1 = Pid.init(0, 109, 0)
 
-    elevator1 = Elevator.init(ip1, pid1, state, orders, lights)
+    elevator1 = Elevator.init(false, ip1, state, orders, lights)
 
     state = State.init(:up, 2)
 
@@ -180,35 +197,10 @@ defmodule CreateList do
     lights = [light1, light2, light3]
 
     ip2 = {10, 101, 23, 150}
-    pid2 = Pid.init(0, 110, 0)
 
-    elevator2 = Elevator.init(ip2, pid2, state, orders, lights)
+    elevator2 = Elevator.init(false, ip2, state, orders, lights)
 
     CompleteSystem.init(elevator1, elevator2)
-  end
-
-  def init_list_fake(myip, mypid) do
-    state = State.init(:idle, 0)
-    orders = []
-
-    light1 = Light.init(:cab, 0, :off)
-    light2 = Light.init(:cab, 1, :off)
-    light3 = Light.init(:cab, 2, :off)
-    light4 = Light.init(:cab, 3, :off)
-    light5 = Light.init(:hall_up, 0, :off)
-    light6 = Light.init(:hall_up, 1, :off)
-    light7 = Light.init(:hall_up, 2, :off)
-    light8 = Light.init(:hall_down, 1, :off)
-    light9 = Light.init(:hall_down, 2, :off)
-    light10 = Light.init(:hall_down, 3, :off)
-
-    lights = [light1, light2, light3, light4, light5, light6, light7, light8, light9, light10]
-
-    ip1 = myip
-    pid1 = mypid
-
-    elevator1 = Elevator.init(ip1, pid1, state, orders, lights)
-    [elevator1]
   end
 
   def init_list_due(myip) do
@@ -227,9 +219,8 @@ defmodule CreateList do
     lights = [light1, light2, light3]
 
     ip1 = {10, 100, 23, 151}
-    pid1 = Pid.init(0, 109, 0)
 
-    elevator1 = Elevator.init(ip1, pid1, state, orders, lights)
+    elevator1 = Elevator.init(false, ip1, state, orders, lights)
 
     state = State.init(:up, 2)
 
@@ -246,9 +237,8 @@ defmodule CreateList do
     lights = [light1, light2, light3]
 
     ip2 = myip
-    pid2 = Pid.init(0, 110, 0)
 
-    elevator2 = Elevator.init(ip2, pid2, state, orders, lights)
+    elevator2 = Elevator.init(false, ip2, state, orders, lights)
 
     CompleteSystem.init(elevator1, elevator2)
   end
