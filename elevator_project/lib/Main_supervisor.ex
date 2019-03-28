@@ -1,5 +1,30 @@
+defmodule Init do
+  def init(tick_time \\ 15000) do
+    ip = Utilities.get_my_ip() |> Utilities.ip_to_string()
+    full_name = "heis" <> "@" <> ip
+    Node.start(String.to_atom(full_name), :longnames, tick_time)
+    Node.set_cookie :hello
+    Init.Application.start()
+  end
+end
+
 
 defmodule Utilities do
+
+  def ip_to_string(ip) do
+      :inet.ntoa(ip) |> to_string()
+  end
+
+  def get_my_ip do
+    {:ok, socket} = :gen_udp.open(6789, [active: false, broadcast: true])
+    :ok = :gen_udp.send(socket, {255,255,255,255}, 6789, "test packet")
+    ip = case :gen_udp.recv(socket, 100, 1000) do
+      {:ok, {ip, _port, _data}} -> ip
+      {:error, _} -> {:error, :could_not_get_ip}
+    end
+    :gen_udp.close(socket)
+    ip
+  end
 
     def ip_to_string ip do
       :inet.ntoa(ip) |> to_string()
@@ -110,8 +135,10 @@ defmodule UDP_Radar do
         case Utilities.node_in_list(name) do
           false ->
             case Utilities.am_I_master do
-              true -> Nodes.get_list
+              true -> Utilities.all_nodes
             end
+          true ->
+    
           end
         {:error, _} -> {:error, :could_not_receive}
       end
@@ -136,7 +163,12 @@ defmodule Monitor do
 
  def handle_info({:nodedown, node_name}, state) do
    IO.puts("NODE DOWN#{node_name}")
+   {:reply,node_name}
+ end
 
+ def handler_info({:nodeup, node_name}, state) do
+   IO.puts("NODE UP #{node_name}")
+   {:reply,node_name}
  end
 
 end
