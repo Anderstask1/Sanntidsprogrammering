@@ -32,7 +32,8 @@ defmodule Init do
     full_name = "heis" <> "@" <> ip
     Node.start(String.to_atom(full_name), :longnames, tick_time)
     Node.set_cookie(:hello)
-    spawn(fn -> Beacon.start_link() end)
+    pid = self()
+    spawn(fn -> Beacon.start_link(pid) end)
     spawn(fn -> Radar.start_link() end)
   end
 end

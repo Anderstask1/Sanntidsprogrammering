@@ -48,15 +48,15 @@ defmodule Distributor do
   end
 
   def send_order(order) do
-      Genserver.multi_call(Observer.get_list, :genserver, {:send_order, order})
+      Genserver.multi_call(Nodes.get_list(), :genserver, {:send_order, order})
   end
 
   def send_state(state) do
-      Genserver.multi_call(Observer.get_list, :genserver, {:send_state, state})
+      Genserver.multi_call(Nodes.get_list(), :genserver, {:send_state, state})
   end
 
   def send_backup(backup) do
-      Genserver.multi_call(Observer.get_list, :genserver, {:send_backup, backup})
+      Genserver.multi_call(Nodes.get_list(), :genserver, {:send_backup, backup})
   end
 
   def add_to_complete_list(new_elevator) do
@@ -142,7 +142,7 @@ defmodule Distributor do
 
   def listen do
       receive do
-          {:bad_nodes, pid_elevator, bad_nodes} ->
+          {:bad_nodes, _, bad_nodes} ->
               Enum.each(bad_nodes, fn bad_node ->
                   NodeCollector.ip(bad_node) |>
                   get_elevator_in_complete_list() |>
@@ -173,7 +173,7 @@ defmodule Distributor do
   def redistribute_orders(elevator) do
       Enum.each(elevator.orders, fn order ->
           if order != :cab do
-              update_system_list(elevator = Elevator.init([], []), order)
+              update_system_list(Elevator.init([], []), order)
           end
       end)
   end

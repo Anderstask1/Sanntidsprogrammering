@@ -20,20 +20,19 @@ sorted by IP.
 
   def get_full_name(ip) do
     s_ip = ip |> ip_to_string()
-    full_name = "heis" <> "@" <> s_ip
+    "heis" <> "@" <> s_ip
   end
 
   def list_of_nodes do
-    sorted_list = all_nodes |> Enum.sort
-    for each_node <- sorted_list, do: tuple = {each_node, ip(each_node) |> elem(1) }
+    sorted_list = all_nodes() |> Enum.sort
+    for each_node <- sorted_list, do: {each_node, ip(each_node) |> elem(1) }
   end
 
   def ip(node) do
     string = to_string(node)
     base = byte_size(":elevator@")-1
     new_string = binary_part(string, base, byte_size(string) -(base+1))
-    ip = :inet.parse_address(to_charlist(new_string))
-
+    :inet.parse_address(to_charlist(new_string))
   end
 
 @doc """
@@ -41,7 +40,7 @@ Returns all nodes in the cluster
 """
   def all_nodes do
     case [Node.self | Node.list] do
-      [:'nonode@nohost'] -> {:error, :node_not_running}
+      [:"nonode@nohost"] -> {:error, :node_not_running}
       nodes -> nodes
     end
   end
@@ -51,9 +50,9 @@ Returns all nodes in the cluster
   end
 
   def is_list_the_same do
-    list = List_name_pid.get_list
+    list = Nodes.get_list()
     :timer.sleep(3000)
-    Enum.sort(list) == Enum.sort(List_name_pid.get_list)
+    Enum.sort(list) == Enum.sort(Nodes.get_list())
   end
 
 
@@ -64,7 +63,7 @@ Returns all nodes in the cluster
   test list every 3rd second for changes in the list.
   """
   def am_I_master do
-    if Node.self() == Enum.at(Enum.at(List_name_pid.get_list,0),1) do #yes
+    if Node.self() == Enum.at(Enum.at(Nodes.get_list(),0),1) do #yes
       IO.puts "Im master"
       IO.puts "send the list"
     end
@@ -83,18 +82,17 @@ This module broadcasts a signal containing it self to other nodes on the same ne
 @doc """
 start_link(port) boots a server process
 """
-  def start_link(a) do
-    GenServer.start_link(__MODULE__,a)
+  def start_link(pid) do
+    GenServer.start_link(__MODULE__,pid)
   end
 
   @doc """
   init(port) initialize the transmitter.
   The initialization runs inside the server process right after it boots
-defmodule Observer do
   """
-    def init(a) do
-      {:ok, beaconSocket} = :gen_udp.open(45678, [active: false, broadcast: true])
-      beacon(a, beaconSocket)
+    def init(pid) do
+      {:ok, beaconSocket} = :gen_udp.open(@beacon_port, [active: false, broadcast: true])
+      beacon(pid, beaconSocket)
     end
 
   @doc """
@@ -105,10 +103,10 @@ defmodule Observer do
   10,22,77,209
   {inspect(self())}
   """
-    def beacon(a, beaconSocket) do
+    def beacon(pid, beaconSocket) do
       :timer.sleep(1000 + :rand.uniform(500))
-      :ok = :gen_udp.send(beaconSocket, {10,100,23,180}, 45679, "#{inspect a}" )
-      beacon(a, beaconSocket)
+      :ok = :gen_udp.send(beaconSocket, {10,100,23,180}, @radar_port, "#{inspect pid}" )
+      beacon(pid, beaconSocket)
     end
 end
 
@@ -121,7 +119,7 @@ This module receives a signal from a node, and add that node to the cluster.
   @doc """
   start_link(port) boots a server process
   """
-  def start_link(port \\ 45679) do
+  def start_link(port \\ @radar_port) do
     GenServer.start_link(__MODULE__, port)
   end
 
@@ -136,7 +134,7 @@ This module receives a signal from a node, and add that node to the cluster.
   @doc """
   radar(radarSocket) listen for messages sent to its socket.
   If it receive a message from a new node, it should add this node to the cluster.
-Node.ping String.to_atom(to_string(data))
+  Node.ping String.to_atom(to_string(data))
   """
   def radar(radarSocket) do
 
@@ -145,7 +143,7 @@ Node.ping String.to_atom(to_string(data))
     #after 1 ->
     #end
     case :gen_udp.recv(radarSocket, 1000) do
-      {:ok, {ip, _port, data}} ->
+      {:ok, {ip, _port, _}} ->
         name = String.to_atom(NodeCollector.get_full_name(ip))
         Node.ping name
       {:error, _} -> {:error, :could_not_receive}
@@ -186,13 +184,6 @@ defmodule Nodes do
     GenServer.cast(:list_of_nodes, {:add_to_list, name})
     #Enum.sort(get_list)
   end
-
-  def get_bad_list(liste) do
-    bad_nodes = Enum.at(liste,1)
-    GenServer.multi_call(liste, :list_of_nodes, :get_list)
-  end
-
-
 
   # -------------CAST AND CALLS -----------------
 
