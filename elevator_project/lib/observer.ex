@@ -73,8 +73,8 @@ This module broadcasts a signal containing it self to other nodes on the same ne
 @doc """
 start_link(port) boots a server process
 """
-  def start_link(a) do
-    GenServer.start_link(__MODULE__,a)
+  def start_link(port \\ 45678) do
+    GenServer.start_link(__MODULE__, port)
   end
 
   @doc """
@@ -82,9 +82,9 @@ start_link(port) boots a server process
   The initialization runs inside the server process right after it boots
 defmodule Observer do
   """
-    def init(a) do
+    def init(port) do
       {:ok, beaconSocket} = :gen_udp.open(45678, [active: false, broadcast: true])
-      beacon(a, beaconSocket)
+      beacon(beaconSocket)
     end
 
   @doc """
@@ -95,10 +95,10 @@ defmodule Observer do
   10,22,77,209
   {inspect(self())}
   """
-    def beacon(a, beaconSocket) do
+    def beacon(beaconSocket) do
       :timer.sleep(1000 + :rand.uniform(500))
-      :ok = :gen_udp.send(beaconSocket, {10,100,23,180}, 45679, "#{inspect a}" )
-      beacon(a, beaconSocket)
+      :ok = :gen_udp.send(beaconSocket, {10,100,23,242}, 45679, "package" )
+      beacon(beaconSocket)
     end
 end
 
@@ -130,16 +130,14 @@ Node.ping String.to_atom(to_string(data))
   """
   def radar(radarSocket) do
 
-    receive do
-      {msg, :gone} -> IO.puts "Received #{inspect msg}"
-    after 1 ->
-    end
 
     case :gen_udp.recv(radarSocket, 1000) do
       {:ok, {ip, _port, data}} ->
-
+        IO.puts "receive"
+        IO.puts "IP: #{inspect ip}"
         name = String.to_atom(NodeCollector.get_full_name(ip))
         Node.ping name
+        IO.puts "Here is the name: #{inspect name}"
         case NodeCollector.node_in_list(name) do
           false ->
             case NodeCollector.am_I_master do
@@ -196,7 +194,7 @@ defmodule Nodes do
   end
 
   def start_link() do
-    GenServer.start_link(__MODULE__, [], name: :list_of_nodes)
+    GenServer.start_link(__MODULE__, [Node.self()], name: :list_of_nodes)
   end
 
   def get_list do
@@ -272,23 +270,4 @@ defmodule Global_list do
     {:noreply, [item | state]}
   end
 
-end
-
-defmodule Monitor do
-  use GenServer
-  require Logger
-
-  def start_link(opts \\ []) do
-   GenServer.start_link(__MODULE__, [], opts)
- end
-
- def init(_) do
-   :ok = :net_kernel.monitor_nodes(true)
-   IO.puts "Monitoring!"
- end
-
- def handle_info({:nodedown, node}, retry_set) do
-   Logger.info "Node #{node} is down"
-   {:noreply, retry_set}
- end
 end
