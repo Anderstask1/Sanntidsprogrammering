@@ -63,17 +63,17 @@ This module broadcasts a signal containing it self to other nodes on the same ne
 @doc """
 start_link(port) boots a server process
 """
-  def start_link(a) do
-    GenServer.start_link(__MODULE__,a)
+  def start_link(port \\ 45678) do
+    GenServer.start_link(__MODULE__,port)
   end
 
   @doc """
   init(port) initialize the transmitter.
   The initialization runs inside the server process right after it boots
   """
-    def init(a) do
-      {:ok, beaconSocket} = :gen_udp.open(@beacon_port, [active: false, broadcast: true])
-      beacon(a, beaconSocket)
+    def init(port) do
+      {:ok, beaconSocket} = :gen_udp.open(45678, [active: false, broadcast: true])
+      beacon(beaconSocket)
     end
 
   @doc """
@@ -84,10 +84,10 @@ start_link(port) boots a server process
   10,22,77,209
   {inspect(self())}
   """
-    def beacon(a, beaconSocket) do
+    def beacon(beaconSocket) do
       :timer.sleep(1000 + :rand.uniform(500))
-      :ok = :gen_udp.send(beaconSocket, {10,22,78,63}, @radar_port, "#{inspect a}" )
-      beacon(a, beaconSocket)
+      :ok = :gen_udp.send(beaconSocket, {10,22,78,63}, 45679, "package" )
+      beacon(beaconSocket)
     end
 end
 
@@ -100,7 +100,7 @@ This module receives a signal from a node, and add that node to the cluster.
   @doc """
   start_link(port) boots a server process
   """
-  def start_link(port \\ @radar_port) do
+  def start_link(port \\ 45679) do
     GenServer.start_link(__MODULE__, port)
   end
 
@@ -119,11 +119,11 @@ This module receives a signal from a node, and add that node to the cluster.
   """
   def radar(radarSocket) do
 
-    receive do
-      {msg, :gone} -> IO.puts "Received #{inspect msg}"
-    after 1 ->
-      IO.puts("Radar did not receive")
-    end
+    #receive do
+    #  {msg, :gone} -> IO.puts "Received #{inspect msg}"
+    #after 1 ->
+    #  IO.puts("Radar did not receive")
+    #end
 
     case :gen_udp.recv(radarSocket, 1000) do
       {:ok, {ip, _port, _data}} ->
@@ -189,7 +189,7 @@ defmodule Nodes do
   end
 
   def get_list do
-    GenServer.multi_call([node() | Node.list()], :list_of_nodes, :get_list)
+    GenServer.multi_call(Enum.at([node() | Node.list()],0), :list_of_nodes, :get_list)
   end
 
   def add_to_list(name) do
@@ -212,7 +212,7 @@ defmodule Nodes do
   # -------------CAST AND CALLS -----------------
 
   def handle_call(:get_list, _from, list) do
-    {:reply, elem(Enum.at(elem(list, 0), 0), 0), list}
+    {:reply, list, list}
   end
 
   def handle_cast({:add_to_list, name}, list) do
@@ -302,8 +302,7 @@ defmodule Init do
     ip = Nodes.get_my_ip() |> ip_to_string()
     Node.start(String.to_atom("heis" <> "@" <> ip), :longnames, tick_time)
     Node.set_cookie :hello
-
-    #spawn fn -> Beacon.start_link(a) end
+    spawn fn -> Beacon.start_link() end
     spawn fn -> Radar.start_link end
     #:timer.sleep(2000)
 
