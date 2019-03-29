@@ -98,7 +98,7 @@ defmodule Distributor do
 ###### ================== CHANGE THIS TO IP
 def kill_broken_elevators(complete_list) do
   if WatchdogList.is_elevator_broken() != nil do
-      {ip, _, _} = WatchdogList.is_elevator_broken()
+      {ip, _} = WatchdogList.is_elevator_broken()
       IO.puts("kill node #{inspect(ip)}")
       broken_elevator = get_elevator_in_complete_list(ip, complete_list)
       %{broken_elevator | harakiri: true}
@@ -132,7 +132,9 @@ end
     elevator = get_elevator_in_complete_list(sender_ip, complete_list)
     if elevator.orders != [] do
       if state.direction == :idle do
+        IO.puts("Orders is completed")
         new_lights = Enum.map(elevator.lights, fn  x -> update_light(state,x) end)
+        WatchdogList.update_watchdog_list(elevator.ip)
         new_elevator_orders = Enum.filter(elevator.orders, fn x ->  x.floor != state.floor end)
         Elevator.init(elevator.harakiri, elevator.ip,state, new_elevator_orders, new_lights)
       else
@@ -140,15 +142,8 @@ end
       end
       |> replace_elevator_in_complete_list(sender_ip, complete_list)
     else
+      WatchdogList.update_watchdog_list(elevator.ip)
       complete_list
-    end
-  end
-
-  def update_light(state, light) do
-    if state.floor == light.floor and state.direction == :idle do
-        %Light{light | state: :off}
-    else
-      light
     end
   end
 
@@ -173,6 +168,7 @@ end
         if Enum.any?(elevator.lights, fn light -> light.floor != new_light.floor and light.type != new_light.type end) or elevator.lights == [] do
           IO.puts("CAB change light in list #{inspect(new_light)}")
           new_lights = change_state_light_in_list(elevator, new_light)
+          WatchdogList.update_watchdog_list(elevator.ip)
           %{elevator | orders: elevator.orders ++ [order], lights: new_lights}
           |> replace_elevator_in_complete_list(elevator.ip, complete_list)
         end
@@ -183,9 +179,27 @@ end
             %{elevator_in_list | lights: new_lights}
           end)
         elevator_min = compute_min_cost_all_elevators(new_complete_list)
+        IO.puts("ELEVATOR MIN COST #{inspect elevator_min}")
         WatchdogList.update_watchdog_list(elevator_min.ip)
         %{elevator_min | orders: elevator_min.orders ++ [order]}
         |> replace_elevator_in_complete_list(elevator.ip, new_complete_list)
+    end
+  end
+
+  @doc """
+  Replace
+  """
+  def update_system_list(sender_ip, lights, complete_list) do
+    elevator = get_elevator_in_complete_list(sender_ip, complete_list)
+    %{elevator | lights: lights}
+    |> replace_elevator_in_complete_list(sender_ip, complete_list)
+  end
+
+  def update_light(state, light) do
+    if state.floor == light.floor and state.direction == :idle do
+        %Light{light | state: :off}
+    else
+      light
     end
   end
 
@@ -197,15 +211,6 @@ end
         light
       end
     end)
-  end
-
-  @doc """
-  Replace
-  """
-  def update_system_list(sender_ip, lights, complete_list) do
-    elevator = get_elevator_in_complete_list(sender_ip, complete_list)
-    %{elevator | lights: lights}
-    |> replace_elevator_in_complete_list(sender_ip, complete_list)
   end
 
   # ============== COST COMPUTATION ===================
@@ -274,8 +279,8 @@ end
   end
 
   def compute_min_cost_all_elevators(complete_list) do
-    cost_list =
-      Enum.map(complete_list, fn elevator -> compute_cost_all_orders(elevator.state, elevator.orders) end)
+    cost_list = Enum.map(complete_list, fn elevator -> compute_cost_all_orders(elevator.state, elevator.orders) end)
+    IO.puts("COST LIST #{inspect cost_list}")
     min_cost = Enum.min(cost_list)
     index = Enum.find_index(cost_list, fn x -> x == min_cost end)
     Enum.at(complete_list, index)
@@ -332,9 +337,7 @@ defmodule WatchdogList do
   end
 
   def handle_cast({:update_watchdog_list, find_ip}, watchdog_list) do
-    IO.puts("Update time in watchdog with ip #{inspect(find_ip)} in watchdog_list #{inspect(watchdog_list)}")
-    watchdog =
-      Enum.map(watchdog_list, fn {ip, time} ->
+    watchdog = Enum.map(watchdog_list, fn {ip, time} ->
         if ip == find_ip do
           {find_ip, Time.utc_now()}
         else

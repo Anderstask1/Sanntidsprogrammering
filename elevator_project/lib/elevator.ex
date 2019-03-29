@@ -39,11 +39,8 @@ defmodule Elevatorm do
       IO.puts "Bye ;( "
       Process.exit(self(), :kill)
     else
-      #I can work normally
       store_local_backup(complete_system)
       {_state, _floor, movement} = ElevatorFSM.get_state()
-      #ip = get_my_local_ip()
-      ip = Node.self()
       ElevatorFSM.send_status()
       if movement == :idle do
         if my_elevator.orders != [] do
@@ -310,8 +307,8 @@ defmodule ElevatorFSM do
     end
   end
 
-  def handle_cast({:arrived, pid_driver}, {_state, floor, _movement}) do
-    {:noreply, {:ARRIVED_FLOOR, floor, :idle}}
+  def handle_cast({:arrived, _pid_driver}, {_state, floor, movement}) do
+    {:noreply, {:ARRIVED_FLOOR, floor, movement}}
   end
 
   def handle_cast(:continue_working, {_state, floor, _movement}) do
