@@ -67,7 +67,7 @@ defmodule Distributor do
   end
 
   def handle_call({:send_order, order, ip}, _from, complete_list) do
-      IO.puts("Complete list --- #{inspect from}")
+      IO.puts("Complete list --- #{inspect ip}")
       kill_broken_elevators(complete_list)
     {:reply, :ok, update_system_list(ip, order, complete_list)}
   end
