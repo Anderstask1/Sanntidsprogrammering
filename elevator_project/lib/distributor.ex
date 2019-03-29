@@ -89,7 +89,7 @@ defmodule Distributor do
       {true, true, false} ->
         IO.puts("TRUE")
         {:reply, :ok, replace_elevator_in_complete_list(elevator, elevator.ip, complete_list)}
-      {false, true; false} ->
+      {false, true, false} ->
         IO.puts("FALSE")
         {:reply, :ok, complete_list ++ [elevator]}
       _ ->
