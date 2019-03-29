@@ -79,8 +79,8 @@ defmodule Main.Supervisor do
   def init(_init_arg) do
     children = [
       {Monitor, []},
-      {UDP_Beacon, [45678]},
-      {UDP_Radar, [45679]}
+      {UDP_Beacon, [45676]},
+      {UDP_Radar, [45677]}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)
@@ -164,8 +164,8 @@ defmodule Monitor do
  def handle_info({:nodedown, node_name}, state) do
     IO.puts("NODE DOWN #{node_name}")
     case Utilities.am_I_master do
-      true -> #get all orders from backup, and redistribute?
-      false -> #do nothing
+      true -> IO.puts "true"#get all orders from backup, and redistribute?
+      false -> IO.puts "false"#do nothing
     end
 
     {:noreply, state}
@@ -174,8 +174,8 @@ defmodule Monitor do
  def handler_info({:nodeup, node_name}, state) do
    IO.puts("NODE UP #{node_name}")
   case Utilities.am_I_master do
-    true -> #keep on rocking or redistribute?
-    false -> #stop distributing
+    true -> IO.puts "true"#keep on rocking or redistribute?
+    false -> IO.puts "false"#stop distributing
   end
    {:noreply, state}
  end
