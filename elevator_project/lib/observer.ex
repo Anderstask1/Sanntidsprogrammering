@@ -4,7 +4,7 @@ defmodule Init do
     full_name = "heis" <> "@" <> ip
     Node.start(String.to_atom(full_name), :longnames, tick_time)
     Node.set_cookie :hello
-    Init.Application.start()
+    Main.Supervisor.start_link([])
   end
 end
 
@@ -13,10 +13,6 @@ defmodule Utilities do
 
   def ip_to_string(ip) do
       :inet.ntoa(ip) |> to_string()
-  end
-
-  def ip_to_string ip do
-    :inet.ntoa(ip) |> to_string()
   end
 
   def get_my_ip do
@@ -54,17 +50,17 @@ defmodule Utilities do
 
 end
 
-defmodule Init.Application do
-    use Application
-
-    def start() do
-        children = [
-            {Main.Supervisor, []}
-        ]
-        {:ok, _} = Supervisor.start_link(children,strategy: :one_for_one)
-    end
-
-end
+# defmodule Init.Application do
+#     use Application
+#
+#     def start() do
+#         children = [
+#             {Main.Supervisor, []}
+#         ]
+#         {:ok, _} = Supervisor.start_link(children,strategy: :one_for_one)
+#     end
+#
+# end
 
 defmodule Main.Supervisor do
   # Automatically defines child_spec/1
