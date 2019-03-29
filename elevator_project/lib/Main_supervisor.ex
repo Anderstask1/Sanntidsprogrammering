@@ -104,7 +104,7 @@ defmodule UDP_Beacon do
 
   def beacon(beaconSocket) do
     :timer.sleep(1000 + :rand.uniform(500))
-    :ok = :gen_udp.send(beaconSocket, {10,22,78,63}, 45679, "package" )
+    :ok = :gen_udp.send(beaconSocket, {10,22,78,63}, 45677, "package" )
     beacon(beaconSocket)
   end
 end
@@ -127,6 +127,7 @@ defmodule UDP_Radar do
   def radar(radarSocket) do
     case :gen_udp.recv(radarSocket, 1000) do
       {:ok, {ip, _port, data}} ->
+        IO.puts "received from #{inspect ip}"
         name = String.to_atom(Utilities.get_full_name(ip))
         Node.ping name
         """
@@ -171,13 +172,14 @@ defmodule Monitor do
     {:noreply, state}
   end
 
- def handler_info({:nodeup, node_name}, state) do
-   IO.puts("NODE UP #{node_name}")
-  case Utilities.am_I_master do
-    true -> IO.puts "true"#keep on rocking or redistribute?
-    false -> IO.puts "false"#stop distributing
-  end
-   {:noreply, state}
- end
+  def handle_info({:nodeup, node_name}, state) do
+     IO.puts("NODE UP #{node_name}")
+     case Utilities.am_I_master do
+       true -> IO.puts "true"#get all orders from backup, and redistribute?
+       false -> IO.puts "false"#do nothing
+     end
+
+     {:noreply, state}
+   end
 
 end
