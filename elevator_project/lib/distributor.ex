@@ -91,7 +91,11 @@ defmodule Distributor do
         IO.puts("FALSE")
         {:reply, :ok, complete_list ++ [elevator]}
       _ ->
+<<<<<<< HEAD
         IO.puts("NIL")
+=======
+        IO.puts("FALSE")
+>>>>>>> 0a987a4269c33898cb550539b8685501108ac994
         {:reply, :ok, complete_list}
     end
   end
@@ -245,6 +249,79 @@ end
 
   # ============== COST COMPUTATION ===================
 
+<<<<<<< HEAD
+=======
+  # @doc """
+  # Converts the direction in atoms to an integer
+  # """
+  # def direction_to_integer(state) do
+  #   case state.direction do
+  #     :up -> 1
+  #     :idle -> 0
+  #     :down -> -1
+  #     _ -> :error
+  #   end
+  # end
+  #
+  # @doc """
+  # Check if the state of the elevator and an order is at the same floor and
+  # moving in the same direction
+  # """
+  # def is_same_floor_same_direction(state, order) do
+  #   case {state.direction, order.type} do
+  #     {:down, :hall_down} -> state.floor == order.floor
+  #     {:up, :hall_up} -> state.floor == order.floor
+  #     _ -> false
+  #   end
+  # end
+  #
+  # @doc """
+  # Simulate an elevator, computing number of steps from the state of the elevator to
+  # the order. Fulfilled when state and order is the same floor and direction
+  # """
+  # def simulate_elevator(duration, state, order) do
+  #   cond do
+  #     is_same_floor_same_direction(state, order) ->
+  #       duration
+  #     true ->
+  #       state =
+  #         case {state.direction, state.floor} do
+  #           {:up, @top} -> %State{state | direction: :down}
+  #           {:down, @bottom} -> %State{state | direction: :up}
+  #           _ -> %State{state | floor: state.floor + direction_to_integer(state)}
+  #         end
+  #       simulate_elevator(duration + 1, state, order)
+  #   end
+  # end
+  #
+  # @doc """
+  # this function compute the cost for a single elevator. the order
+  # """
+  # def compute_cost_order(state, order) do
+  #   case {state.direction, order.type} do
+  #     {:idle, _} ->
+  #       abs(state.floor - order.floor)
+  #     _other ->
+  #       simulate_elevator(0, state, order)
+  #   end
+  # end
+  #
+  # def compute_cost_all_orders(state, orders) do
+  #   cost_list = []
+  #   temp1 = Enum.map(orders, fn order -> %Order{order | cost: compute_cost_order(state, order)}end)
+  #   temp2 =  Enum.map(temp1, fn order -> cost_list ++ order.cost end)
+  #   temp3 =  Enum.sum(temp2)
+  #   temp3
+  # end
+  #
+  # def compute_min_cost_all_elevators(order, complete_list) do
+  #   cost_list = Enum.map(complete_list, fn elevator -> compute_cost_all_orders(elevator.state, elevator.orders ++ [order]) end)
+  #   IO.puts("Cost of different elevators is #{inspect cost_list}")
+  #   min_cost = Enum.min(cost_list)
+  #   index = Enum.find_index(cost_list, fn x -> x == min_cost end)
+  #   Enum.at(complete_list, index)
+  # end
+>>>>>>> 0a987a4269c33898cb550539b8685501108ac994
 
   def compute_min_cost_all_elevators(order, complete_list) do
     cost_list = Enum.map(complete_list, fn elevator -> length(elevator.orders) + abs(elevator.state.floor - order.floor) end)
