@@ -86,7 +86,7 @@ start_link(port) boots a server process
   """
     def beacon(beaconSocket) do
       :timer.sleep(1000 + :rand.uniform(500))
-      :ok = :gen_udp.send(beaconSocket, {10,22,78,63}, 45679, "package" )
+      :ok = :gen_udp.send(beaconSocket, {255,255,255,255}, 45679, "package" )
       beacon(beaconSocket)
     end
 end

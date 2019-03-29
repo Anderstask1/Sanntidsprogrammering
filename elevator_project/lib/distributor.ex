@@ -333,7 +333,6 @@ defmodule WatchdogList do
 
   def handle_cast({:update_watchdog_list, find_ip}, watchdog_list) do
     IO.puts("Update time in watchdog with ip #{inspect(find_ip)} in watchdog_list #{inspect(watchdog_list)}")
-
     watchdog =
       Enum.map(watchdog_list, fn {ip, time} ->
         if ip == find_ip do
@@ -342,7 +341,6 @@ defmodule WatchdogList do
           {ip, time}
         end
       end)
-
     {:noreply, watchdog}
   end
 end

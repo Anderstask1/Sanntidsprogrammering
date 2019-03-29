@@ -33,7 +33,6 @@ defmodule Elevatorm do
     #ip = get_my_local_ip()
     ip = Node.self()
     my_elevator = Enum.find(complete_system, fn elevator -> elevator.ip == ip end)
-    IO.puts("State of elevator is #{inspect my_elevator.state}")
     if my_elevator.harakiri do
       #I have to kill myself
       Enum.map(all_pids, fn pid -> Process.exit(pid, :kill) end)
@@ -349,7 +348,6 @@ defmodule ElevatorFSM do
 
   def handle_cast(:send_status, {state, floor, movement}) do
     Distributor.send_state(State.init(movement, floor))
-    IO.puts("--#{inspect movement}--")
     {:noreply, {state, floor, movement}}
   end
 
