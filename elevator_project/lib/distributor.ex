@@ -91,7 +91,11 @@ defmodule Distributor do
         IO.puts("FALSE")
         {:reply, :ok, complete_list ++ [elevator]}
       _ ->
+<<<<<<< HEAD
+        IO.puts("NIL")
+=======
         IO.puts("FALSE")
+>>>>>>> 0a987a4269c33898cb550539b8685501108ac994
         {:reply, :ok, complete_list}
     end
   end
@@ -160,7 +164,7 @@ end
   def update_system_list(sender_ip, state = %State{}, complete_list) do
     elevator = get_elevator_in_complete_list(sender_ip, complete_list)
     temp =
-      if elevator.orders != [] do
+      if elevator.orders != [] and elevator.orders != nil do
         if state.direction == :idle do
           new_lights = Enum.map(elevator.lights, fn  x -> update_light(state,x) end)
           WatchdogList.update_watchdog_list(elevator.ip)
@@ -245,6 +249,8 @@ end
 
   # ============== COST COMPUTATION ===================
 
+<<<<<<< HEAD
+=======
   # @doc """
   # Converts the direction in atoms to an integer
   # """
@@ -315,6 +321,7 @@ end
   #   index = Enum.find_index(cost_list, fn x -> x == min_cost end)
   #   Enum.at(complete_list, index)
   # end
+>>>>>>> 0a987a4269c33898cb550539b8685501108ac994
 
   def compute_min_cost_all_elevators(order, complete_list) do
     cost_list = Enum.map(complete_list, fn elevator -> length(elevator.orders) + abs(elevator.state.floor - order.floor) end)
