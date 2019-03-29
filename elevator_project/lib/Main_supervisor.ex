@@ -154,8 +154,8 @@ defmodule Monitor do
  def handle_info({:nodedown, node_name}, state) do
     IO.puts("NODE DOWN #{node_name}")
     case Utilities.am_I_master do
-      true -> IO.puts "true"#get all orders from backup, and redistribute?
-      false -> IO.puts "false"#do nothing
+      true -> IO.puts "I am master"#get all orders from backup, and redistribute?
+      false -> IO.puts "I´m not master"#do nothing
     end
 
     {:noreply, state}
@@ -164,8 +164,8 @@ defmodule Monitor do
   def handle_info({:nodeup, node_name}, state) do
      IO.puts("NODE UP #{node_name}")
      case Utilities.am_I_master do
-       true -> IO.puts "true"#get all orders from backup, and redistribute?
-       false -> IO.puts "false"#do nothing
+       true -> IO.puts "I am master"#get all orders from backup, and redistribute?
+       false -> IO.puts "I´m not master"#do nothing
      end
 
      {:noreply, state}
