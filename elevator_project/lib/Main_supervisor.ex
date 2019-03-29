@@ -1,3 +1,4 @@
+
 defmodule Init do
   def init(tick_time \\ 15000) do
     ip = Utilities.get_my_ip() |> Utilities.ip_to_string()
@@ -91,7 +92,6 @@ defmodule UDP_Beacon do
 
 
   def start_link(port) do
-    IO.puts "yessir"
     Task.start_link(__MODULE__, :init, port)
   end
 
@@ -105,7 +105,6 @@ defmodule UDP_Beacon do
   def beacon(beaconSocket) do
     :timer.sleep(1000 + :rand.uniform(500))
     :ok = :gen_udp.send(beaconSocket, {10,22,78,63}, 45679, "package" )
-    IO.puts "sent"
     beacon(beaconSocket)
   end
 end
@@ -114,7 +113,6 @@ defmodule UDP_Radar do
   use Task
 
   def start_link(port) do
-    IO.puts "yessir"
     Task.start_link(__MODULE__, :init, port)
   end
 
@@ -129,19 +127,20 @@ defmodule UDP_Radar do
   def radar(radarSocket) do
     case :gen_udp.recv(radarSocket, 1000) do
       {:ok, {ip, _port, data}} ->
-        IO.puts "received"
         name = String.to_atom(Utilities.get_full_name(ip))
         Node.ping name
+        """
         case Utilities.node_in_list(name) do
           false ->
             case Utilities.am_I_master do
               true -> Utilities.all_nodes
             end
           true ->
-    
+
           end
-        {:error, _} -> {:error, :could_not_receive}
-      end
+          """
+      {:error, _} -> {:error, :could_not_receive}
+    end
     radar(radarSocket)
   end
 
@@ -154,6 +153,7 @@ defmodule Monitor do
   def start_link(opts \\ []) do
    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
  end
+
  @impl true
  def init(state) do
     IO.puts "Monitoring!"
@@ -162,14 +162,22 @@ defmodule Monitor do
  end
 
  def handle_info({:nodedown, node_name}, state) do
-   IO.puts("NODE DOWN#{node_name}")
-   {:reply,node_name}
- end
+    IO.puts("NODE DOWN #{node_name}")
+    case Utilities.am_I_master do
+      true -> #get all orders from backup, and redistribute?
+      false -> #do nothing
+    end
+
+    {:noreply, state}
+  end
 
  def handler_info({:nodeup, node_name}, state) do
    IO.puts("NODE UP #{node_name}")
-   {:reply,node_name}
+  case Utilities.am_I_master do
+    true -> #keep on rocking or redistribute?
+    false -> #stop distributing
+  end
+   {:noreply, state}
  end
 
 end
-#  {Task.Supervisor, name: Auction.Supervisor}
