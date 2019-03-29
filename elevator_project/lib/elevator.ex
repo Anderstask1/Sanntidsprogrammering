@@ -8,11 +8,17 @@ defmodule Elevatorm do
     {:ok, pid_FSM} = ElevatorFSM.start_link()
     IO.puts("FSM started")
     go_to_know_state(pid_driver)
+
+    IO.puts("11111111111---------#{inspect Distributor.get_elevator_in_complete_list(Node.self(), Distributor.get_complete_list())}")
+    Distributor.add_to_complete_list(Distributor.get_elevator_in_complete_list(Node.self(), Distributor.get_complete_list()))
+
     retrieve_local_backup()
     IO.puts("Spawn collectors")
     pid_elevator = self()
     IO.puts("STATE IS SET TO #{inspect ElevatorFSM.get_state()}")
     ElevatorFSM.send_status()
+
+    IO.puts("22222222222-----------#{inspect Distributor.get_elevator_in_complete_list(Node.self(), Distributor.get_complete_list())}")
 
     pid_order_collector = spawn(fn -> ElevatorFSM.order_collector(pid_driver) end)
     pid_floor_collector = spawn(fn -> ElevatorFSM.floor_collector(pid_driver, pid_FSM) end)
@@ -26,7 +32,6 @@ defmodule Elevatorm do
     IO.puts("======================================")
     all_pids=[pid_order_collector,pid_floor_collector,pid_FSM, pid_driver]
     IO.puts("=FLOOR COLLECTOR  #{inspect(pid_floor_collector)}")
-    Distributor.add_to_complete_list(Distributor.get_elevator_in_complete_list(Node.self(), Distributor.get_complete_list()))
     executing_orders_loop(pid_FSM, pid_driver, all_pids,[])
   end
 
@@ -43,7 +48,7 @@ defmodule Elevatorm do
     else
       store_local_backup(complete_system)
       {_state, _floor, movement} = ElevatorFSM.get_state()
-      ElevatorFSM.send_status()
+      ElevatorFSM.send_status())
       if movement == :idle do
         if my_elevator.orders != [] do
           order = List.first(my_elevator.orders).floor
