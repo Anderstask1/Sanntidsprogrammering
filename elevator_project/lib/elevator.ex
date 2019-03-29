@@ -11,6 +11,7 @@ defmodule Elevatorm do
     retrieve_local_backup()
     IO.puts("Spawn collectors")
     pid_elevator = self()
+    IO.puts("STATE IS SET TO #{inspect ElevatorFSM.get_state()}")
     ElevatorFSM.send_status()
 
     pid_order_collector = spawn(fn -> ElevatorFSM.order_collector(pid_driver) end)
@@ -110,33 +111,26 @@ defmodule Elevatorm do
   def retrieve_local_backup do
     case File.read("local_backup") do
       {:ok, data} ->
-        IO.puts("
-        £  There is a backup avalible
-         ")
+        IO.puts("£  There is a backup avalible")
         complete_system = :erlang.binary_to_term(data)
-        #ip = get_my_local_ip()
         ip = Node.self()
         my_elevator = Enum.find(complete_system, fn elevator -> elevator.ip == ip end)
         IO.puts("My elevator system retrieved : #{inspect(complete_system)}")
         IO.puts("Sending backup the elevator to the distributor")
-        #send(pid_distributor, {:elevator_backup, sender, my_elevator})
         Enum.each(my_elevator.orders, fn order -> Distributor.send_order(order) end)
+        IO.puts(" STATE IS SET TO #{inspect my_elevator.state}")
         Distributor.send_state(my_elevator.state)
         Distributor.send_lights(my_elevator.lights)
       {:error, :enoent} ->
-        IO.puts("
-         £  There is no backup, lets create one
-         ")
-        #ip = get_my_local_ip()
+        IO.puts("£  There is no backup, lets create one")
         ip = Node.self()
         complete_system = CompleteSystem.init_list(ip)
         my_elevator = Enum.find(complete_system, fn elevator -> elevator.ip == ip end)
         IO.puts("Sending backup from elevator to the distributor")
-        #send(pid_distributor, {:elevator_backup, sender, my_elevator})
         Enum.each(my_elevator.orders, fn order -> Distributor.send_order(order) end)
+        IO.puts(" STATE IS SET TO #{inspect my_elevator.state}")
         Distributor.send_state(my_elevator.state)
         Distributor.send_lights(my_elevator.lights)
-
       unspected ->
         IO.puts("Unespected read result : #{inspect(unspected)}")
     end

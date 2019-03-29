@@ -131,21 +131,24 @@ end
   """
   def update_system_list(sender_ip, state = %State{}, complete_list) do
     elevator = get_elevator_in_complete_list(sender_ip, complete_list)
-    if elevator.orders != [] do
-      if state.direction == :idle do
-        IO.puts("Orders is completed")
-        new_lights = Enum.map(elevator.lights, fn  x -> update_light(state,x) end)
-        WatchdogList.update_watchdog_list(elevator.ip)
-        new_elevator_orders = Enum.filter(elevator.orders, fn x ->  x.floor != state.floor end)
-        Elevator.init(elevator.harakiri, elevator.ip,state, new_elevator_orders, new_lights)
+    temp =
+      if elevator.orders != [] do
+        if state.direction == :idle do
+          IO.puts("Orders is completed")
+          new_lights = Enum.map(elevator.lights, fn  x -> update_light(state,x) end)
+          WatchdogList.update_watchdog_list(elevator.ip)
+          new_elevator_orders = Enum.filter(elevator.orders, fn x ->  x.floor != state.floor end)
+          Elevator.init(elevator.harakiri, elevator.ip,state, new_elevator_orders, new_lights)
+        else
+          Elevator.init(elevator.harakiri, elevator.ip, state, elevator.orders, elevator.lights)
+        end
+        |> replace_elevator_in_complete_list(sender_ip, complete_list)
       else
+        WatchdogList.update_watchdog_list(elevator.ip)
         Elevator.init(elevator.harakiri, elevator.ip, state, elevator.orders, elevator.lights)
+        |> replace_elevator_in_complete_list(sender_ip, complete_list)
       end
-      |> replace_elevator_in_complete_list(sender_ip, complete_list)
-    else
-      WatchdogList.update_watchdog_list(elevator.ip)
-      complete_list
-    end
+    temp
   end
 
   @doc """
@@ -161,31 +164,31 @@ end
       else
         get_elevator_in_complete_list(sender_ip, complete_list)
       end
-      IO.puts("=========== #{inspect complete_list}")
     new_light = Light.init(order.type, order.floor, :on)
-    case order.type do
-      :cab ->
-
-        if Enum.any?(elevator.lights, fn light -> light.floor != new_light.floor and light.type != new_light.type end) or elevator.lights == [] do
-          IO.puts("CAB change light in list #{inspect(new_light)}")
-          new_lights = change_state_light_in_list(elevator, new_light)
-          WatchdogList.update_watchdog_list(elevator.ip)
-          %{elevator | orders: elevator.orders ++ [order], lights: new_lights}
-          |> replace_elevator_in_complete_list(elevator.ip, complete_list)
-        end
-      _ ->
-        new_complete_list =
-          Enum.map(complete_list, fn elevator_in_list ->
-            new_lights = change_state_light_in_list(elevator_in_list, new_light)
-            %{elevator_in_list | lights: new_lights}
-          end)
-        IO.puts("&&&& #{inspect complete_list}")
-        elevator_min = compute_min_cost_all_elevators(new_complete_list)
-        IO.puts("ELEVATOR MIN COST #{inspect elevator_min} computed by #{inspect Node.self()}")
-        WatchdogList.update_watchdog_list(elevator_min.ip)
-        %{elevator_min | orders: elevator_min.orders ++ [order]}
-        |> replace_elevator_in_complete_list(elevator.ip, new_complete_list)
-    end
+    temp =
+      case order.type do
+        :cab ->
+          if Enum.any?(elevator.lights, fn light -> light.floor != new_light.floor and light.type != new_light.type end) or elevator.lights == [] do
+            IO.puts("CAB change light in list #{inspect(new_light)}")
+            new_lights = change_state_light_in_list(elevator, new_light)
+            WatchdogList.update_watchdog_list(elevator.ip)
+            %{elevator | orders: elevator.orders ++ [order], lights: new_lights}
+            |> replace_elevator_in_complete_list(elevator.ip, complete_list)
+          end
+        _ ->
+          new_complete_list =
+            Enum.map(complete_list, fn elevator_in_list ->
+              new_lights = change_state_light_in_list(elevator_in_list, new_light)
+              %{elevator_in_list | lights: new_lights}
+            end)
+          elevator_min = compute_min_cost_all_elevators(order, new_complete_list)
+          IO.puts("ELEVATOR MIN COST #{inspect elevator_min} add order #{inspect order} computed by #{inspect Node.self()}")
+          WatchdogList.update_watchdog_list(elevator_min.ip)
+          %{elevator_min | orders: elevator_min.orders ++ [order]}
+          |> replace_elevator_in_complete_list(elevator.ip, new_complete_list)
+      end
+      IO.puts("COMPLETE LIST AFTER ORDER RECEIVED #{inspect temp}")
+      temp
   end
 
   @doc """
@@ -247,8 +250,9 @@ end
   """
   def simulate_elevator(duration, state, order) do
     cond do
-      is_same_floor_same_direction(state, order) -> duration
-      IO.puts("Steps of simulation during cost computation #{inspect duration}")
+      is_same_floor_same_direction(state, order) ->
+        IO.puts("Steps of simulation during cost computation #{inspect duration}")
+        duration
       true ->
         state =
           case {state.direction, state.floor} do
@@ -269,8 +273,6 @@ end
       {:idle, _} ->
         IO.puts("NOOOOO")
         abs(state.floor - order.floor)
-
-
       _other ->
         IO.puts("PLEEEAAASEE")
         simulate_elevator(0, state, order)
@@ -280,17 +282,14 @@ end
   def compute_cost_all_orders(state, orders) do
     cost_list = []
     IO.puts("!!!!!!! state #{inspect state} and orders #{inspect orders}")
-    Enum.map(orders, fn order ->
-      IO.puts("HELOOOOO")
-      %Order{order | cost: order.cost + compute_cost_order(state, order)}
-    end)
+    Enum.map(orders, fn order -> %Order{order | cost: compute_cost_order(state, order)}end)
     |> Enum.map(fn order -> cost_list ++ order.cost end)
     |> Enum.sum()
   end
 
-  def compute_min_cost_all_elevators(complete_list) do
-    cost_list = Enum.map(complete_list, fn elevator -> compute_cost_all_orders(elevator.state, elevator.orders) end)
-    IO.puts("COST LIST #{inspect complete_list}")
+  def compute_min_cost_all_elevators(order, complete_list) do
+    cost_list = Enum.map(complete_list, fn elevator -> compute_cost_all_orders(elevator.state, elevator.orders ++ [order]) end)
+    IO.puts("THE COST LIST IS __---___----__ #{inspect cost_list}")
     min_cost = Enum.min(cost_list)
     index = Enum.find_index(cost_list, fn x -> x == min_cost end)
     Enum.at(complete_list, index)
