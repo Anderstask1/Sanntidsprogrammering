@@ -45,6 +45,7 @@ defmodule Elevatorm do
       if movement == :idle do
         if my_elevator.orders != [] do
           order = List.first(my_elevator.orders).floor
+          IO.puts("ELEV order taken #{inspect order} from node #{inspect Node.self()}")
           spawn(fn -> elevator_loop(pid_FSM, pid_driver, order) end)
           ElevatorFSM.send_status()
         end
