@@ -160,7 +160,9 @@ defmodule Monitor do
   end
 
   def handle_info({:nodeup, node_name}, state) do
-     Distributor.add_to_complete_list(node_name)
+    :timer.sleep(3000)
+    IO.puts("MY LIST #{inspect Distributor.get_complete_list()}")
+     Distributor.add_to_complete_list(Distributor.get_elevator_in_complete_list(node_name, Distributor.get_complete_list()))
      case Utilities.am_I_master do
        true -> IO.puts "I am master"#get all orders from backup, and redistribute?
        false -> IO.puts "I´m not master"#do nothing

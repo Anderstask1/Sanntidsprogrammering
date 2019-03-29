@@ -51,8 +51,8 @@ defmodule Distributor do
     GenServer.multi_call(Utilities.all_nodes, :genserver, {:send_lights, lights})
   end
 
-  def add_to_complete_list(elevator_ip) do
-    GenServer.multi_call(Utilities.all_nodes, :genserver, {:add_to_complete_list, elevator_ip})
+  def add_to_complete_list(elevator) do
+    GenServer.multi_call(Utilities.all_nodes, :genserver, {:add_to_complete_list, elevator})
   end
 
   def delete_from_complete_list(elevator_ip) do
@@ -81,15 +81,17 @@ defmodule Distributor do
     {:reply, :ok, update_system_list(elem(elem(from, 1), 1), lights, complete_list)}
   end
 
-  def handle_call({:add_to_complete_list, elevator_ip}, from, complete_list) do
-    #Init elevator
-    IO.puts("New node in cluster #{inspect elem(elem(from, 1), 1)}")
-    {:noreply, complete_list ++ [Distributor.get_elevator_in_complete_list(Node.self())]}
+  def handle_call({:add_to_complete_list, elevator}, from, complete_list) do
+    IO.puts("New node in cluster ")
+    case Enum.member(complete_list, elevator) do
+      true -> {:noreply, replace_elevator_in_complete_list(elevator, elem(elem(from, 1), 1), complete_list)}
+      false -> {:noreply, complete_list ++ [elevator]}
+    end
   end
 
   def handle_cast({:delete_from_complete_list, elevator_ip}, complete_list) do
     IO.puts("Delete elevator from list with name #{inspect elevator_ip}")
-    {:noreply, List.delete(complete_list, Distributor.get_elevator_in_complete_list(elevator_ip))}
+    {:noreply, List.delete(complete_list, get_elevator_in_complete_list(elevator_ip, complete_list))}
   end
 
   def delete_elevator_in_complete_list(elevator, complete_list) do
