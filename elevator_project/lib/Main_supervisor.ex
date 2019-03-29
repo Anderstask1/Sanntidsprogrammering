@@ -127,19 +127,8 @@ defmodule UDP_Radar do
   def radar(radarSocket) do
     case :gen_udp.recv(radarSocket, 1000) do
       {:ok, {ip, _port, data}} ->
-        IO.puts "received from #{inspect ip}"
         name = String.to_atom(Utilities.get_full_name(ip))
         Node.ping name
-        """
-        case Utilities.node_in_list(name) do
-          false ->
-            case Utilities.am_I_master do
-              true -> Utilities.all_nodes
-            end
-          true ->
-
-          end
-          """
       {:error, _} -> {:error, :could_not_receive}
     end
     radar(radarSocket)
