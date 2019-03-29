@@ -97,21 +97,16 @@ defmodule Distributor do
 
 ###### ================== CHANGE THIS TO IP
 def kill_broken_elevators(complete_list) do
-  case WatchdogList.is_elevator_broken() do
-    nil ->
-      IO.puts("No elevator to kill")
-
-    {ip, _, _} ->
+  if WatchdogList.is_elevator_broken() != nil do
+      {ip, _, _} = WatchdogList.is_elevator_broken()
       IO.puts("kill node #{inspect(ip)}")
       broken_elevator = get_elevator_in_complete_list(ip, complete_list)
       %{broken_elevator | harakiri: true}
       |> replace_elevator_in_complete_list(ip, complete_list) # Hakiri: Japanese= cut your belly
-
       if length(complete_list) == 1 do
         IO.puts("Master say goodbye ;( ")
         Process.exit(self(), :kill)
       end
-
       delete_elevator_in_complete_list(broken_elevator, complete_list)
       redistribute_orders(broken_elevator, complete_list)
   end
@@ -328,7 +323,6 @@ defmodule WatchdogList do
   end
 
   def handle_call({:is_elevator_broken, new_time}, _from, watchdog_list) do
-    IO.puts("Check if elevator is broken")
     {:reply, Enum.find(watchdog_list, fn {_, time} -> !(time == nil or Time.diff(new_time, time) < 25) end), watchdog_list}
   end
 

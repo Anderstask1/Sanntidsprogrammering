@@ -323,7 +323,7 @@ defmodule ElevatorFSM do
     {:noreply, {:ARRIVED_FLOOR, floor, movement}}
   end
 
-  def handle_cast({:new_order, pid_driver, order}, {_state, floor, movement}) do
+  def handle_cast({:new_order, pid_driver, order}, {state, floor, movement}) do
     if order != floor and movement == :idle do
         if order > floor do
           Driver.set_motor_direction(pid_driver, :up)
@@ -333,7 +333,7 @@ defmodule ElevatorFSM do
           {:noreply, {:MOVE, floor, :down}}
         end
     else
-      {:noreply, {:IDLE, floor, :idle}}
+      {:noreply, {state, floor, movement}}
     end
   end
 
