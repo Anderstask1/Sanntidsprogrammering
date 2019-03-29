@@ -39,20 +39,20 @@ defmodule Distributor do
     GenServer.call(:genserver, :get_complete_list)
   end
 
-  def send_order(order) do
-    GenServer.multi_call(Utilities.all_nodes, :genserver, {:send_order, order})
+  def send_order(order, ip) do
+    GenServer.multi_call(Utilities.all_nodes, :genserver, {:send_order, order, ip})
   end
 
-  def send_state(state) do
-    GenServer.multi_call(Utilities.all_nodes, :genserver, {:send_state, state})
+  def send_state(state, ip) do
+    GenServer.multi_call(Utilities.all_nodes, :genserver, {:send_state, state, ip})
   end
 
-  def send_lights(lights) do
-    GenServer.multi_call(Utilities.all_nodes, :genserver, {:send_lights, lights})
+  def send_lights(lights, ip) do
+    GenServer.multi_call(Utilities.all_nodes, :genserver, {:send_lights, lights, ip})
   end
 
-  def add_to_complete_list(elevator) do
-    GenServer.multi_call(Utilities.all_nodes, :genserver, {:add_to_complete_list, elevator})
+  def add_to_complete_list(elevator, ip) do
+    GenServer.multi_call(Utilities.all_nodes, :genserver, {:add_to_complete_list, elevator, ip})
   end
 
   def delete_from_complete_list(elevator_ip) do
@@ -66,31 +66,29 @@ defmodule Distributor do
     {:reply, complete_list, complete_list}
   end
 
-  def handle_call({:send_order, order}, from, complete_list) do
-      IO.puts("Complete list --- #{inspect complete_list}")
+  def handle_call({:send_order, order, ip}, _from, complete_list) do
+      IO.puts("Complete list --- #{inspect from}")
       kill_broken_elevators(complete_list)
-    {:reply, :ok, update_system_list(elem(elem(from, 1), 1), order, complete_list)}
+    {:reply, :ok, update_system_list(ip, order, complete_list)}
   end
 
-  def handle_call({:send_state, state}, from, complete_list) do
+  def handle_call({:send_state, state, ip}, _from, complete_list) do
     kill_broken_elevators(complete_list)
-    {:reply, :ok, update_system_list(elem(elem(from, 1), 1), state, complete_list)}
+    {:reply, :ok, update_system_list(ip, state, complete_list)}
   end
 
-  def handle_call({:send_lights, lights}, from, complete_list) do
-    {:reply, :ok, update_system_list(elem(elem(from, 1), 1), lights, complete_list)}
+  def handle_call({:send_lights, lights, ip}, _from, complete_list) do
+    {:reply, :ok, update_system_list(ip, lights, complete_list)}
   end
 
-  def handle_call({:add_to_complete_list, elevator}, from, complete_list) do
+  def handle_call({:add_to_complete_list, elevator, ip}, _from, complete_list) do
     IO.puts("New node in cluster #{inspect complete_list}")
     case Enum.member?(Enum.map(complete_list, fn list_elevator -> list_elevator.ip end), elevator.ip) do
       true ->
         IO.puts("TRUE")
-        #IO.puts("New list replaced elevator #{inspect replace_elevator_in_complete_list(elevator, elem(elem(from, 1), 1), complete_list)}")
-        {:reply, :ok, replace_elevator_in_complete_list(elevator, elem(elem(from, 1), 1), complete_list)}
+        {:reply, :ok, replace_elevator_in_complete_list(elevator, elevator.ip, complete_list)}
       false ->
         IO.puts("FALSE")
-        IO.puts("New list added elevator #{inspect complete_list ++ [elevator]}")
         {:reply, :ok, complete_list ++ [elevator]}
     end
   end
@@ -190,6 +188,7 @@ end
       else
         get_elevator_in_complete_list(sender_ip, complete_list)
       end
+    IO.puts("--- THIS elevator received an order #{inspect elevator}")
     new_light = Light.init(order.type, order.floor, :on)
     case order.type do
       :cab ->
