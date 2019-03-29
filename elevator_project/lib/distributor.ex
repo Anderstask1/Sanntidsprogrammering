@@ -165,30 +165,28 @@ end
         get_elevator_in_complete_list(sender_ip, complete_list)
       end
     new_light = Light.init(order.type, order.floor, :on)
-    temp =
-      case order.type do
-        :cab ->
-          if Enum.any?(elevator.lights, fn light -> light.floor != new_light.floor and light.type != new_light.type end) or elevator.lights == [] do
-            IO.puts("CAB change light in list #{inspect(new_light)}")
-            new_lights = change_state_light_in_list(elevator, new_light)
-            WatchdogList.update_watchdog_list(elevator.ip)
-            %{elevator | orders: elevator.orders ++ [order], lights: new_lights}
-            |> replace_elevator_in_complete_list(elevator.ip, complete_list)
-          end
-        _ ->
-          new_complete_list =
-            Enum.map(complete_list, fn elevator_in_list ->
-              new_lights = change_state_light_in_list(elevator_in_list, new_light)
-              %{elevator_in_list | lights: new_lights}
-            end)
-          elevator_min = compute_min_cost_all_elevators(order, new_complete_list)
-          IO.puts("ELEVATOR MIN COST #{inspect elevator_min} add order #{inspect order} computed by #{inspect Node.self()}")
-          WatchdogList.update_watchdog_list(elevator_min.ip)
-          %{elevator_min | orders: elevator_min.orders ++ [order]}
-          |> replace_elevator_in_complete_list(elevator.ip, new_complete_list)
-      end
-      IO.puts("COMPLETE LIST AFTER ORDER RECEIVED #{inspect temp}")
-      temp
+    case order.type do
+      :cab ->
+        if Enum.any?(elevator.lights, fn light -> light.floor != new_light.floor and light.type != new_light.type end) or elevator.lights == [] do
+          IO.puts("CAB change light in list #{inspect(new_light)}")
+          IO.puts("ELEVATOR MIN COST #{inspect elevator.ip} add order #{inspect order} computed by #{inspect Node.self()}")
+          new_lights = change_state_light_in_list(elevator, new_light)
+          WatchdogList.update_watchdog_list(elevator.ip)
+          %{elevator | orders: elevator.orders ++ [order], lights: new_lights}
+          |> replace_elevator_in_complete_list(elevator.ip, complete_list)
+        end
+      _ ->
+        new_complete_list =
+          Enum.map(complete_list, fn elevator_in_list ->
+            new_lights = change_state_light_in_list(elevator_in_list, new_light)
+            %{elevator_in_list | lights: new_lights}
+          end)
+        elevator_min = compute_min_cost_all_elevators(order, new_complete_list)
+        IO.puts("ELEVATOR MIN COST #{inspect elevator_min.ip} add order #{inspect order} computed by #{inspect Node.self()}")
+        WatchdogList.update_watchdog_list(elevator_min.ip)
+        %{elevator_min | orders: elevator_min.orders ++ [order]}
+        |> replace_elevator_in_complete_list(elevator.ip, new_complete_list)
+    end
   end
 
   @doc """
@@ -251,7 +249,6 @@ end
   def simulate_elevator(duration, state, order) do
     cond do
       is_same_floor_same_direction(state, order) ->
-        IO.puts("Steps of simulation during cost computation #{inspect duration}")
         duration
       true ->
         state =
@@ -268,28 +265,25 @@ end
   this function compute the cost for a single elevator. the order
   """
   def compute_cost_order(state, order) do
-    IO.puts("____ state #{inspect state} __ order #{inspect order}")
     case {state.direction, order.type} do
       {:idle, _} ->
-        IO.puts("NOOOOO")
         abs(state.floor - order.floor)
       _other ->
-        IO.puts("PLEEEAAASEE")
         simulate_elevator(0, state, order)
     end
   end
 
   def compute_cost_all_orders(state, orders) do
     cost_list = []
-    IO.puts("!!!!!!! state #{inspect state} and orders #{inspect orders}")
-    Enum.map(orders, fn order -> %Order{order | cost: compute_cost_order(state, order)}end)
-    |> Enum.map(fn order -> cost_list ++ order.cost end)
-    |> Enum.sum()
+    temp1 = Enum.map(orders, fn order -> %Order{order | cost: compute_cost_order(state, order)}end)
+    temp2 =  Enum.map(temp1, fn order -> cost_list ++ order.cost end)
+    temp3 =  Enum.sum(temp2)
+    IO.puts("--- #{inspect temp1} --- #{inspect temp2} --- #{inspect temp3}")
+    temp3
   end
 
   def compute_min_cost_all_elevators(order, complete_list) do
     cost_list = Enum.map(complete_list, fn elevator -> compute_cost_all_orders(elevator.state, elevator.orders ++ [order]) end)
-    IO.puts("THE COST LIST IS __---___----__ #{inspect cost_list}")
     min_cost = Enum.min(cost_list)
     index = Enum.find_index(cost_list, fn x -> x == min_cost end)
     Enum.at(complete_list, index)

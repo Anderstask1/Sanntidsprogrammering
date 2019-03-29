@@ -103,7 +103,7 @@ defmodule UDP_Beacon do
 
   def beacon(beaconSocket) do
     :timer.sleep(1000 + :rand.uniform(500))
-    :ok = :gen_udp.send(beaconSocket, {10,22,78,63}, 45677, "package" )
+    :ok = :gen_udp.send(beaconSocket, {255,255,255,255}, 45677, "package" )
     beacon(beaconSocket)
   end
 end
