@@ -19,7 +19,6 @@ defmodule Distributor do
     {:ok, pid_genserver} = start_server(Enum.map(Utilities.all_nodes, fn ip -> Elevator.init(ip) end))
     IO.puts("DIST start pid: #{inspect(self())}")
     IO.puts("Pid dist genserver: #{inspect(pid_genserver)}")
-
     {:ok, ip_watchdog} = WatchdogList.start()
     IO.puts("ip watchdog: #{inspect(ip_watchdog)}")
     Enum.map(Utilities.all_nodes, fn ip -> WatchdogList.add_to_watchdog_list(ip) end)
@@ -56,6 +55,10 @@ defmodule Distributor do
     GenServer.multi_call(Utilities.all_nodes, :genserver, {:add_to_complete_list, elevator_ip})
   end
 
+  def delete_from_complete_list(elevator_ip) do
+    GenServer.cast(:genserver, {:delete_from_complete_list, elevator_ip})
+  end
+
   # -------------CAST AND CALLS -----------------
 
   def handle_call(:get_complete_list, _from, complete_list) do
@@ -78,9 +81,15 @@ defmodule Distributor do
     {:reply, :ok, update_system_list(elem(elem(from, 1), 1), lights, complete_list)}
   end
 
-  def handle_call({:add_to_complete_list, elevator_ip}, _from, complete_list) do
-    elevator = 
-    {:noreply, complete_list ++ [elevator]}
+  def handle_call({:add_to_complete_list, elevator_ip}, from, complete_list) do
+    #Init elevator
+    IO.puts("New node in cluster #{inspect elem(elem(from, 1), 1)}")
+    {:noreply, complete_list ++ [Distributor.get_elevator_in_complete_list(Node.self())]}
+  end
+
+  def handle_cast({:delete_from_complete_list, elevator_ip}, complete_list) do
+    IO.puts("Delete elevator from list with name #{inspect elevator_ip}")
+    {:noreply, List.delete(complete_list, Distributor.get_elevator_in_complete_list(elevator_ip))}
   end
 
   def delete_elevator_in_complete_list(elevator, complete_list) do

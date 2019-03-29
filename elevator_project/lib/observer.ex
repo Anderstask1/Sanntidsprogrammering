@@ -94,7 +94,6 @@ defmodule UDP_Beacon do
     Task.start_link(__MODULE__, :init, port)
   end
 
-  @impl true
   def init(port) do
     {:ok, beaconSocket} = :gen_udp.open(port, [active: false, broadcast: true])
     beacon(beaconSocket)
@@ -116,7 +115,6 @@ defmodule UDP_Radar do
   end
 
 
-  @impl true
   def init(port) do
     {:ok, radarSocket} = :gen_udp.open(port, [active: false, broadcast: true])
     radar(radarSocket)
@@ -125,7 +123,7 @@ defmodule UDP_Radar do
 
   def radar(radarSocket) do
     case :gen_udp.recv(radarSocket, 1000) do
-      {:ok, {ip, _port, data}} ->
+      {:ok, {ip, _port, _data}} ->
         name = String.to_atom(Utilities.get_full_name(ip))
         Node.ping name
       {:error, _} -> {:error, :could_not_receive}
@@ -152,6 +150,7 @@ defmodule Monitor do
 
  def handle_info({:nodedown, node_name}, state) do
     IO.puts("NODE DOWN #{node_name}")
+    Distributor.delete_from_complete_list(node_name)
     case Utilities.am_I_master do
       true -> IO.puts "I am master"#get all orders from backup, and redistribute?
       false -> IO.puts "I´m not master"#do nothing
@@ -161,12 +160,11 @@ defmodule Monitor do
   end
 
   def handle_info({:nodeup, node_name}, state) do
-     IO.puts("NODE UP #{node_name}")
+     Distributor.add_to_complete_list(node_name)
      case Utilities.am_I_master do
        true -> IO.puts "I am master"#get all orders from backup, and redistribute?
        false -> IO.puts "I´m not master"#do nothing
      end
-
      {:noreply, state}
    end
 
