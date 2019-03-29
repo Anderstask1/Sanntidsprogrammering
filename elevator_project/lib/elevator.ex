@@ -25,7 +25,8 @@ defmodule Elevatorm do
     IO.puts("=FLOOR COLLECTOR  #{inspect(pid_floor_collector)}")
     IO.puts("======================================")
     all_pids=[pid_order_collector,pid_floor_collector,pid_FSM, pid_driver]
-    IO.puts("Entering executing my orders loop")
+    IO.puts("=FLOOR COLLECTOR  #{inspect(pid_floor_collector)}")
+    Distributor.add_to_complete_list(Distributor.get_elevator_in_complete_list(Node.self(), Distributor.get_complete_list()))
     executing_orders_loop(pid_FSM, pid_driver, all_pids,[])
   end
 

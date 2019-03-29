@@ -82,10 +82,14 @@ defmodule Distributor do
   end
 
   def handle_call({:add_to_complete_list, elevator}, from, complete_list) do
-    IO.puts("New node in cluster ")
+    IO.puts("New node in cluster")
     case Enum.member?(complete_list, elevator) do
-      true -> {:noreply, replace_elevator_in_complete_list(elevator, elem(elem(from, 1), 1), complete_list)}
-      false -> {:noreply, complete_list ++ [elevator]}
+      true ->
+        IO.puts("TRUE")
+        {:reply, :ok, replace_elevator_in_complete_list(elevator, elem(elem(from, 1), 1), complete_list)}
+      false ->
+        IO.puts("FALSE")
+        {:reply, :ok, complete_list ++ [elevator]}
     end
   end
 
