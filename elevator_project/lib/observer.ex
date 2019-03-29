@@ -147,8 +147,6 @@ defmodule Monitor do
  def handle_info({:nodedown, node_name}, state) do
     IO.puts("NODE DOWN #{node_name}")
     Distributor.delete_from_complete_list(node_name)
-
-
     {:noreply, state}
   end
 
@@ -156,7 +154,6 @@ defmodule Monitor do
     :timer.sleep(3000)
     # IO.puts("MY LIST #{inspect Distributor.get_complete_list()}")
      Distributor.add_to_complete_list(Distributor.get_elevator_in_complete_list(Node.self(), Distributor.get_complete_list()), Node.self())
-
      {:noreply, state}
    end
 
