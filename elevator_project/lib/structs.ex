@@ -128,9 +128,10 @@ defmodule CreateList do
   end
 
   def init_orders do
-    order1 = Order.init(:cab, 1)
-    order2 = Order.init(:cab, 2)
+    order1 = Order.init(:hall_up, 1)
+    order2 = Order.init(:hall_down, 2)
     order3 = Order.init(:hall_down, 3)
+    order4 = Order.init(:hall_up, 2)
     order4 = Order.init(:hall_up, 2)
     order5 = Order.init(:hall_down, 2)
     [order1, order2, order3, order4, order5]
@@ -166,11 +167,11 @@ defmodule CreateList do
   def init_list do
     state = State.init(:up, 0)
 
-    order1 = Order.init(:cab, 1)
-    order2 = Order.init(:cab, 2)
-    order3 = Order.init(:hall_down, 3)
-    order4 = Order.init(:hall_up, 2)
-    order5 = Order.init(:hall_down, 2)
+    order1 = Order.init(:hall_down, 3)
+    order2 = Order.init(:hall_down, 2)
+    order3 = Order.init(:hall_down, 2)
+    order4 = Order.init(:hall_down, 2)
+    order5 = Order.init(:hall_down, 1)
     orders = [order1, order2, order3, order4, order5]
 
     light1 = Light.init(:cab, 1, :on)
@@ -178,14 +179,14 @@ defmodule CreateList do
     light3 = Light.init(:hall_up, 2, :on)
     lights = [light1, light2, light3]
 
-    ip1 = {10, 100, 23, 151}
+    ip1 = {10, 100, 23, 150}
 
     elevator1 = Elevator.init(false, ip1, state, orders, lights)
 
     state = State.init(:up, 2)
 
-    order1 = Order.init(:cab, 1)
-    order2 = Order.init(:cab, 2)
+    order1 = Order.init(:hall_down, 1)
+    order2 = Order.init(:hall_down, 2)
     order3 = Order.init(:hall_down, 3)
     order4 = Order.init(:hall_up, 2)
     order5 = Order.init(:hall_down, 2)
@@ -196,11 +197,26 @@ defmodule CreateList do
     light3 = Light.init(:hall_down, 3, :on)
     lights = [light1, light2, light3]
 
-    ip2 = {10, 101, 23, 150}
+    ip2 = {10, 101, 23, 151}
 
     elevator2 = Elevator.init(false, ip2, state, orders, lights)
 
+    state = State.init(:up, 0)
+
+    order1 = Order.init(:hall_down, 3)
+    orders = [order1]
+
+    light1 = Light.init(:cab, 1, :on)
+    light2 = Light.init(:cab, 2, :on)
+    light3 = Light.init(:hall_up, 2, :on)
+    lights = [light1, light2, light3]
+
+    ip3 = {10, 100, 23, 152}
+
+    elevator3 = Elevator.init(false, ip3, state, orders, lights)
+
     CompleteSystem.init(elevator1, elevator2)
+    |> CompleteSystem.add_elevator(elevator3)
   end
 
   def init_list_due(myip) do

@@ -16,13 +16,12 @@ defmodule Distributor do
 
   # create the genserver with an empty list
   def start() do
-    {:ok, pid_genserver} = start_server(Enum.map(NodeCollector.all_nodes, fn ip -> Elevator.init(ip) end))
+    {:ok, pid_genserver} = start_server(Enum.map(Utilities.all_nodes, fn ip -> Elevator.init(ip) end))
     IO.puts("DIST start pid: #{inspect(self())}")
     IO.puts("Pid dist genserver: #{inspect(pid_genserver)}")
-
     {:ok, ip_watchdog} = WatchdogList.start()
     IO.puts("ip watchdog: #{inspect(ip_watchdog)}")
-    Enum.map(NodeCollector.all_nodes, fn ip -> WatchdogList.add_to_watchdog_list(ip) end)
+    Enum.map(Utilities.all_nodes, fn ip -> WatchdogList.add_to_watchdog_list(ip) end)
   end
 
   # =========== GENSERVER =============
@@ -40,36 +39,70 @@ defmodule Distributor do
     GenServer.call(:genserver, :get_complete_list)
   end
 
-  def send_order(order) do
-    GenServer.multi_call(NodeCollector.all_nodes, :genserver, {:send_order, order})
+  def send_order(order, ip) do
+    GenServer.multi_call(Utilities.all_nodes, :genserver, {:send_order, order, ip})
   end
 
-  def send_state(state) do
-    GenServer.multi_call(NodeCollector.all_nodes, :genserver, {:send_state, state})
+  def send_state(state, ip) do
+    GenServer.multi_call(Utilities.all_nodes, :genserver, {:send_state, state, ip})
   end
 
-  def send_lights(lights) do
-    GenServer.multi_call(NodeCollector.all_nodes, :genserver, {:send_lights, lights})
+  def send_lights(lights, ip) do
+    GenServer.multi_call(Utilities.all_nodes, :genserver, {:send_lights, lights, ip})
+  end
+
+  def add_to_complete_list(elevator, ip) do
+    GenServer.multi_call(Utilities.all_nodes, :genserver, {:add_to_complete_list, elevator, ip})
+  end
+
+  def delete_from_complete_list(elevator_ip) do
+    GenServer.cast(:genserver, {:delete_from_complete_list, elevator_ip})
   end
 
   # -------------CAST AND CALLS -----------------
 
   def handle_call(:get_complete_list, _from, complete_list) do
+    #IO.puts("........complete_list #{inspect complete_list}")
     {:reply, complete_list, complete_list}
   end
 
-  def handle_call({:send_order, order}, from, complete_list) do
+  def handle_call({:send_order, order, ip}, _from, complete_list) do
+      IO.puts("Complete list --- #{inspect ip}")
       kill_broken_elevators(complete_list)
-    {:reply, :ok, update_system_list(elem(elem(from, 1), 1), order, complete_list)}
+    {:reply, :ok, update_system_list(ip, order, complete_list)}
   end
 
-  def handle_call({:send_state, state}, from, complete_list) do
+  def handle_call({:send_state, state, ip}, _from, complete_list) do
     kill_broken_elevators(complete_list)
-    {:reply, :ok, update_system_list(elem(elem(from, 1), 1), state, complete_list)}
+    {:reply, :ok, update_system_list(ip, state, complete_list)}
   end
 
-  def handle_call({:send_lights, lights}, from, complete_list) do
-    {:reply, :ok, update_system_list(elem(elem(from, 1), 1), lights, complete_list)}
+  def handle_call({:send_lights, lights, ip}, _from, complete_list) do
+    {:reply, :ok, update_system_list(ip, lights, complete_list)}
+  end
+
+  def handle_call({:add_to_complete_list, elevator, ip}, _from, complete_list) do
+    IO.puts("New node in cluster #{inspect complete_list}")
+    case {Enum.member?(Enum.map(complete_list, fn list_elevator -> list_elevator.ip end), elevator.ip), elevator.state != nil} do
+      {true, true} ->
+        IO.puts("TRUE")
+        {:reply, :ok, replace_elevator_in_complete_list(elevator, elevator.ip, complete_list)}
+      {false, true} ->
+        IO.puts("FALSE")
+        {:reply, :ok, complete_list ++ [elevator]}
+      _ ->
+<<<<<<< HEAD
+        IO.puts("NIL")
+=======
+        IO.puts("FALSE")
+>>>>>>> 0a987a4269c33898cb550539b8685501108ac994
+        {:reply, :ok, complete_list}
+    end
+  end
+
+  def handle_cast({:delete_from_complete_list, elevator_ip}, complete_list) do
+    IO.puts("Delete elevator from list with name #{inspect elevator_ip}")
+    {:noreply, List.delete(complete_list, get_elevator_in_complete_list(elevator_ip, complete_list))}
   end
 
   def delete_elevator_in_complete_list(elevator, complete_list) do
@@ -97,21 +130,16 @@ defmodule Distributor do
 
 ###### ================== CHANGE THIS TO IP
 def kill_broken_elevators(complete_list) do
-  case WatchdogList.is_elevator_broken() do
-    nil ->
-      IO.puts("No elevator to kill")
-
-    {ip, _, _} ->
+  if WatchdogList.is_elevator_broken() != nil do
+      {ip, _} = WatchdogList.is_elevator_broken()
       IO.puts("kill node #{inspect(ip)}")
       broken_elevator = get_elevator_in_complete_list(ip, complete_list)
       %{broken_elevator | harakiri: true}
       |> replace_elevator_in_complete_list(ip, complete_list) # Hakiri: Japanese= cut your belly
-
       if length(complete_list) == 1 do
         IO.puts("Master say goodbye ;( ")
         Process.exit(self(), :kill)
       end
-
       delete_elevator_in_complete_list(broken_elevator, complete_list)
       redistribute_orders(broken_elevator, complete_list)
   end
@@ -135,26 +163,23 @@ end
   """
   def update_system_list(sender_ip, state = %State{}, complete_list) do
     elevator = get_elevator_in_complete_list(sender_ip, complete_list)
-    if elevator.orders != [] do
-      if state.direction == :idle do
-        new_lights = Enum.map(elevator.lights, fn  x -> update_light(state,x) end)
-        new_elevator_orders = Enum.filter(elevator.orders, fn x ->  x.floor != state.floor end)
-        Elevator.init(elevator.harakiri, elevator.ip,state, new_elevator_orders, new_lights)
+    temp =
+      if elevator.orders != [] and elevator.orders != nil do
+        if state.direction == :idle do
+          new_lights = Enum.map(elevator.lights, fn  x -> update_light(state,x) end)
+          WatchdogList.update_watchdog_list(elevator.ip)
+          new_elevator_orders = Enum.filter(elevator.orders, fn x ->  x.floor != state.floor end)
+          Elevator.init(elevator.harakiri, elevator.ip,state, new_elevator_orders, new_lights)
+        else
+          Elevator.init(elevator.harakiri, elevator.ip, state, elevator.orders, elevator.lights)
+        end
+        |> replace_elevator_in_complete_list(sender_ip, complete_list)
       else
+        WatchdogList.update_watchdog_list(elevator.ip)
         Elevator.init(elevator.harakiri, elevator.ip, state, elevator.orders, elevator.lights)
+        |> replace_elevator_in_complete_list(sender_ip, complete_list)
       end
-      |> replace_elevator_in_complete_list(sender_ip, complete_list)
-    else
-      complete_list
-    end
-  end
-
-  def update_light(state, light) do
-    if state.floor == light.floor and state.direction == :idle do
-        %Light{light | state: :off}
-    else
-      light
-    end
+    temp
   end
 
   @doc """
@@ -170,14 +195,14 @@ end
       else
         get_elevator_in_complete_list(sender_ip, complete_list)
       end
-
+    IO.puts("--- THIS elevator received an order #{inspect elevator}")
     new_light = Light.init(order.type, order.floor, :on)
     case order.type do
       :cab ->
-
         if Enum.any?(elevator.lights, fn light -> light.floor != new_light.floor and light.type != new_light.type end) or elevator.lights == [] do
-          IO.puts("CAB change light in list #{inspect(new_light)}")
+          IO.puts("Cab order, elevator ---- #{inspect elevator.ip} ---- takes order ---- #{inspect order} ---- computed by --- #{inspect Node.self()}")
           new_lights = change_state_light_in_list(elevator, new_light)
+          WatchdogList.update_watchdog_list(elevator.ip)
           %{elevator | orders: elevator.orders ++ [order], lights: new_lights}
           |> replace_elevator_in_complete_list(elevator.ip, complete_list)
         end
@@ -187,10 +212,28 @@ end
             new_lights = change_state_light_in_list(elevator_in_list, new_light)
             %{elevator_in_list | lights: new_lights}
           end)
-        elevator_min = compute_min_cost_all_elevators(new_complete_list)
+        elevator_min = compute_min_cost_all_elevators(order, new_complete_list)
+        IO.puts("Outside order, elevator ---- #{inspect elevator_min.ip} ---- takes order ---- #{inspect order} ---- computed by --- #{inspect Node.self()}")
         WatchdogList.update_watchdog_list(elevator_min.ip)
         %{elevator_min | orders: elevator_min.orders ++ [order]}
         |> replace_elevator_in_complete_list(elevator.ip, new_complete_list)
+    end
+  end
+
+  @doc """
+  Replace
+  """
+  def update_system_list(sender_ip, lights, complete_list) do
+    elevator = get_elevator_in_complete_list(sender_ip, complete_list)
+    %{elevator | lights: lights}
+    |> replace_elevator_in_complete_list(sender_ip, complete_list)
+  end
+
+  def update_light(state, light) do
+    if state.floor == light.floor and state.direction == :idle do
+        %Light{light | state: :off}
+    else
+      light
     end
   end
 
@@ -204,87 +247,90 @@ end
     end)
   end
 
-  @doc """
-  Replace
-  """
-  def update_system_list(sender_ip, lights, complete_list) do
-    elevator = get_elevator_in_complete_list(sender_ip, complete_list)
-    %{elevator | lights: lights}
-    |> replace_elevator_in_complete_list(sender_ip, complete_list)
-  end
-
   # ============== COST COMPUTATION ===================
 
-  @doc """
-  Converts the direction in atoms to an integer
-  """
-  def direction_to_integer(state) do
-    case state.direction do
-      :up -> 1
-      :idle -> 0
-      :down -> -1
-      _ -> :error
-    end
-  end
+<<<<<<< HEAD
+=======
+  # @doc """
+  # Converts the direction in atoms to an integer
+  # """
+  # def direction_to_integer(state) do
+  #   case state.direction do
+  #     :up -> 1
+  #     :idle -> 0
+  #     :down -> -1
+  #     _ -> :error
+  #   end
+  # end
+  #
+  # @doc """
+  # Check if the state of the elevator and an order is at the same floor and
+  # moving in the same direction
+  # """
+  # def is_same_floor_same_direction(state, order) do
+  #   case {state.direction, order.type} do
+  #     {:down, :hall_down} -> state.floor == order.floor
+  #     {:up, :hall_up} -> state.floor == order.floor
+  #     _ -> false
+  #   end
+  # end
+  #
+  # @doc """
+  # Simulate an elevator, computing number of steps from the state of the elevator to
+  # the order. Fulfilled when state and order is the same floor and direction
+  # """
+  # def simulate_elevator(duration, state, order) do
+  #   cond do
+  #     is_same_floor_same_direction(state, order) ->
+  #       duration
+  #     true ->
+  #       state =
+  #         case {state.direction, state.floor} do
+  #           {:up, @top} -> %State{state | direction: :down}
+  #           {:down, @bottom} -> %State{state | direction: :up}
+  #           _ -> %State{state | floor: state.floor + direction_to_integer(state)}
+  #         end
+  #       simulate_elevator(duration + 1, state, order)
+  #   end
+  # end
+  #
+  # @doc """
+  # this function compute the cost for a single elevator. the order
+  # """
+  # def compute_cost_order(state, order) do
+  #   case {state.direction, order.type} do
+  #     {:idle, _} ->
+  #       abs(state.floor - order.floor)
+  #     _other ->
+  #       simulate_elevator(0, state, order)
+  #   end
+  # end
+  #
+  # def compute_cost_all_orders(state, orders) do
+  #   cost_list = []
+  #   temp1 = Enum.map(orders, fn order -> %Order{order | cost: compute_cost_order(state, order)}end)
+  #   temp2 =  Enum.map(temp1, fn order -> cost_list ++ order.cost end)
+  #   temp3 =  Enum.sum(temp2)
+  #   temp3
+  # end
+  #
+  # def compute_min_cost_all_elevators(order, complete_list) do
+  #   cost_list = Enum.map(complete_list, fn elevator -> compute_cost_all_orders(elevator.state, elevator.orders ++ [order]) end)
+  #   IO.puts("Cost of different elevators is #{inspect cost_list}")
+  #   min_cost = Enum.min(cost_list)
+  #   index = Enum.find_index(cost_list, fn x -> x == min_cost end)
+  #   Enum.at(complete_list, index)
+  # end
+>>>>>>> 0a987a4269c33898cb550539b8685501108ac994
 
-  @doc """
-  Check if the state of the elevator and an order is at the same floor and
-  moving in the same direction
-  """
-  def is_same_floor_same_direction(state, order) do
-    case {state.direction, order.type} do
-      {:down, :hall_down} -> state.floor == order.floor
-      {:up, :hall_up} -> state.floor == order.floor
-      _ -> false
-    end
-  end
-
-  @doc """
-  Simulate an elevator, computing number of steps from the state of the elevator to
-  the order. Fulfilled when state and order is the same floor and direction
-  """
-  def simulate_elevator(duration, state, order) do
-    cond do
-      is_same_floor_same_direction(state, order) -> duration
-      true ->
-        state =
-          case {state.direction, state.floor} do
-            {:up, @top} -> %State{state | direction: :down}
-            {:down, @bottom} -> %State{state | direction: :up}
-            _ -> %State{state | floor: state.floor + direction_to_integer(state)}
-          end
-        simulate_elevator(duration + 1, state, order)
-    end
-  end
-
-  @doc """
-  this function compute the cost for a single elevator. the order
-  """
-  def compute_cost_order(state, order) do
-    case {state.direction, order.type} do
-      {:idle, _} ->
-        abs(state.floor - order.floor)
-
-      _other ->
-        simulate_elevator(0, state, order)
-    end
-  end
-
-  def compute_cost_all_orders(state, orders) do
-    cost_list = []
-    orders
-    |> Enum.map(fn order -> %Order{order | cost: order.cost + compute_cost_order(state, order)} end)
-    |> Enum.map(fn order -> cost_list ++ order.cost end)
-    |> Enum.sum()
-  end
-
-  def compute_min_cost_all_elevators(complete_list) do
-    cost_list =
-      Enum.map(complete_list, fn elevator -> compute_cost_all_orders(elevator.state, elevator.orders) end)
+  def compute_min_cost_all_elevators(order, complete_list) do
+    cost_list = Enum.map(complete_list, fn elevator -> length(elevator.orders) + abs(elevator.state.floor - order.floor) end)
+    IO.puts("Cost of different elevators is #{inspect cost_list}")
     min_cost = Enum.min(cost_list)
     index = Enum.find_index(cost_list, fn x -> x == min_cost end)
     Enum.at(complete_list, index)
   end
+
 end
 
 defmodule WatchdogList do
@@ -328,7 +374,6 @@ defmodule WatchdogList do
   end
 
   def handle_call({:is_elevator_broken, new_time}, _from, watchdog_list) do
-    IO.puts("Check if elevator is broken")
     {:reply, Enum.find(watchdog_list, fn {_, time} -> !(time == nil or Time.diff(new_time, time) < 25) end), watchdog_list}
   end
 
@@ -338,17 +383,13 @@ defmodule WatchdogList do
   end
 
   def handle_cast({:update_watchdog_list, find_ip}, watchdog_list) do
-    IO.puts("Update time in watchdog with ip #{inspect(find_ip)} in watchdog_list #{inspect(watchdog_list)}")
-
-    watchdog =
-      Enum.map(watchdog_list, fn {ip, time} ->
+    watchdog = Enum.map(watchdog_list, fn {ip, time} ->
         if ip == find_ip do
           {find_ip, Time.utc_now()}
         else
           {ip, time}
         end
       end)
-
     {:noreply, watchdog}
   end
 end

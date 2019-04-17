@@ -8,10 +8,16 @@ defmodule Elevatorm do
     {:ok, pid_FSM} = ElevatorFSM.start_link()
     IO.puts("FSM started")
     go_to_know_state(pid_driver)
+
+
+
     retrieve_local_backup()
     IO.puts("Spawn collectors")
     pid_elevator = self()
+    IO.puts("STATE IS SET TO #{inspect ElevatorFSM.get_state()}")
     ElevatorFSM.send_status()
+
+    IO.puts("22222222222-----------#{inspect Distributor.get_elevator_in_complete_list(Node.self(), Distributor.get_complete_list())}")
 
     pid_order_collector = spawn(fn -> ElevatorFSM.order_collector(pid_driver) end)
     pid_floor_collector = spawn(fn -> ElevatorFSM.floor_collector(pid_driver, pid_FSM) end)
@@ -23,8 +29,13 @@ defmodule Elevatorm do
     IO.puts("=ORDER COLLECTOR  #{inspect(pid_order_collector)}")
     IO.puts("=FLOOR COLLECTOR  #{inspect(pid_floor_collector)}")
     IO.puts("======================================")
+
+    IO.puts("BAAAAAMMMM!!! Complete#{inspect Distributor.get_complete_list}")
+    IO.puts("11111111111---------#{inspect Distributor.get_elevator_in_complete_list(Node.self(), Distributor.get_complete_list())}")
+    Distributor.add_to_complete_list(Distributor.get_elevator_in_complete_list(Node.self(), Distributor.get_complete_list()), Node.self())
+
     all_pids=[pid_order_collector,pid_floor_collector,pid_FSM, pid_driver]
-    IO.puts("Entering executing my orders loop")
+    IO.puts("=FLOOR COLLECTOR  #{inspect(pid_floor_collector)}")
     executing_orders_loop(pid_FSM, pid_driver, all_pids,[])
   end
 
@@ -33,22 +44,19 @@ defmodule Elevatorm do
     #ip = get_my_local_ip()
     ip = Node.self()
     my_elevator = Enum.find(complete_system, fn elevator -> elevator.ip == ip end)
-    IO.puts("State of elevator is #{inspect my_elevator.state}")
     if my_elevator.harakiri do
       #I have to kill myself
       Enum.map(all_pids, fn pid -> Process.exit(pid, :kill) end)
       IO.puts "Bye ;( "
       Process.exit(self(), :kill)
     else
-      #I can work normally
       store_local_backup(complete_system)
       {_state, _floor, movement} = ElevatorFSM.get_state()
-      #ip = get_my_local_ip()
-      ip = Node.self()
       ElevatorFSM.send_status()
       if movement == :idle do
         if my_elevator.orders != [] do
           order = List.first(my_elevator.orders).floor
+          IO.puts("ELEV order taken #{inspect order} from node #{inspect Node.self()}")
           spawn(fn -> elevator_loop(pid_FSM, pid_driver, order) end)
           ElevatorFSM.send_status()
         end
@@ -113,33 +121,26 @@ defmodule Elevatorm do
   def retrieve_local_backup do
     case File.read("local_backup") do
       {:ok, data} ->
-        IO.puts("
-        £  There is a backup avalible
-         ")
+        IO.puts("£  There is a backup avalible")
         complete_system = :erlang.binary_to_term(data)
-        #ip = get_my_local_ip()
         ip = Node.self()
         my_elevator = Enum.find(complete_system, fn elevator -> elevator.ip == ip end)
         IO.puts("My elevator system retrieved : #{inspect(complete_system)}")
         IO.puts("Sending backup the elevator to the distributor")
-        #send(pid_distributor, {:elevator_backup, sender, my_elevator})
-        Enum.each(my_elevator.orders, fn order -> Distributor.send_order(order) end)
-        Distributor.send_state(my_elevator.state)
-        Distributor.send_lights(my_elevator.lights)
+        Enum.each(my_elevator.orders, fn order -> Distributor.send_order(order, Node.self()) end)
+        IO.puts(" STATE IS SET TO #{inspect my_elevator.state}")
+        Distributor.send_state(my_elevator.state, Node.self())
+        Distributor.send_lights(my_elevator.lights, Node.self())
       {:error, :enoent} ->
-        IO.puts("
-         £  There is no backup, lets create one
-         ")
-        #ip = get_my_local_ip()
+        IO.puts("£  There is no backup, lets create one")
         ip = Node.self()
         complete_system = CompleteSystem.init_list(ip)
         my_elevator = Enum.find(complete_system, fn elevator -> elevator.ip == ip end)
         IO.puts("Sending backup from elevator to the distributor")
-        #send(pid_distributor, {:elevator_backup, sender, my_elevator})
-        Enum.each(my_elevator.orders, fn order -> Distributor.send_order(order) end)
-        Distributor.send_state(my_elevator.state)
-        Distributor.send_lights(my_elevator.lights)
-
+        Enum.each(my_elevator.orders, fn order -> Distributor.send_order(order, Node.self()) end)
+        IO.puts(" STATE IS SET TO #{inspect my_elevator.state}")
+        Distributor.send_state(my_elevator.state, Node.self())
+        Distributor.send_lights(my_elevator.lights, Node.self())
       unspected ->
         IO.puts("Unespected read result : #{inspect(unspected)}")
     end
@@ -311,8 +312,8 @@ defmodule ElevatorFSM do
     end
   end
 
-  def handle_cast({:arrived, pid_driver}, {_state, floor, _movement}) do
-    {:noreply, {:ARRIVED_FLOOR, floor, :idle}}
+  def handle_cast({:arrived, _pid_driver}, {_state, floor, movement}) do
+    {:noreply, {:ARRIVED_FLOOR, floor, movement}}
   end
 
   def handle_cast(:continue_working, {_state, floor, _movement}) do
@@ -323,7 +324,7 @@ defmodule ElevatorFSM do
     {:noreply, {:ARRIVED_FLOOR, floor, movement}}
   end
 
-  def handle_cast({:new_order, pid_driver, order}, {_state, floor, movement}) do
+  def handle_cast({:new_order, pid_driver, order}, {state, floor, movement}) do
     if order != floor and movement == :idle do
         if order > floor do
           Driver.set_motor_direction(pid_driver, :up)
@@ -333,7 +334,7 @@ defmodule ElevatorFSM do
           {:noreply, {:MOVE, floor, :down}}
         end
     else
-      {:noreply, {:IDLE, floor, :idle}}
+      {:noreply, {state, floor, movement}}
     end
   end
 
@@ -348,8 +349,7 @@ defmodule ElevatorFSM do
   end
 
   def handle_cast(:send_status, {state, floor, movement}) do
-    Distributor.send_state(State.init(movement, floor))
-    IO.puts("--#{inspect movement}--")
+    Distributor.send_state(State.init(movement, floor), Node.self())
     {:noreply, {state, floor, movement}}
   end
 
@@ -415,7 +415,7 @@ defmodule ElevatorFSM do
     if length(floors) == 1 and floors != previous do
       Enum.map(floors, fn x ->
         #send(pid_distributor, {:order, pid_send, Order.init(button_type, x)})
-        Distributor.send_order(Order.init(button_type, x))
+        Distributor.send_order(Order.init(button_type, x), Node.self())
       end)
     end
   end
@@ -429,7 +429,7 @@ defmodule ElevatorFSM do
       update_floor(pid_driver)
       Driver.set_floor_indicator(pid_driver, new_floor)
       {_state, _floor, movement} = get_state()
-      Distributor.send_state(State.init(movement, new_floor))
+      Distributor.send_state(State.init(movement, new_floor), Node.self())
     end
 
     floor_collector(pid_driver, new_floor)
