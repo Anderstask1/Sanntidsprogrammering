@@ -199,8 +199,8 @@ end
             end)
             Elevator.init(elevator.harakiri, elevator.ip,elevator.state, elevator.orders, new_lights)
         else
-            elevator
             IO.puts "NOpe :("
+            elevator
         end
     end)
 
