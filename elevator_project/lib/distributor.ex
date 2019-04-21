@@ -182,6 +182,7 @@ end
   floors, and kill the node if that is the case
   """
   def update_system_list(sender_ip, state = %State{}, complete_list) do
+    IO.puts "Lets update the system list "
     new_complete_list = Enum.map(complete_list, fn  elevator ->
         if elevator.orders != [] and elevator.orders != nil do
             new_lights = Enum.map(elevator.lights, fn  x ->
@@ -210,11 +211,11 @@ end
         else
           Elevator.init(elevator.harakiri, elevator.ip, state, elevator.orders, elevator.lights)
         end
-        |> replace_elevator_in_complete_list(sender_ip, complete_list)
+        |> replace_elevator_in_complete_list(sender_ip, new_complete_list)
       else
         WatchdogList.update_watchdog_list(elevator.ip)
         Elevator.init(elevator.harakiri, elevator.ip, state, elevator.orders, elevator.lights)
-        |> replace_elevator_in_complete_list(sender_ip, complete_list)
+        |> replace_elevator_in_complete_list(sender_ip, new_complete_list)
       end
     temp
   end
