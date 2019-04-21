@@ -116,10 +116,10 @@ defmodule Distributor do
         IO.puts("TRUE")
         {:reply, :ok, replace_elevator_in_complete_list(elevator, elevator.ip, complete_list)}
       {false, true} ->
-        IO.puts("FALSE")
+        IO.puts("FALSE1")
         {:reply, :ok, complete_list ++ [elevator]}
       _ ->
-        IO.puts("FALSE")
+        IO.puts("FALSE2")
         {:reply, :ok, complete_list}
     end
   end
@@ -231,7 +231,7 @@ end
           new_lights = change_state_light_in_list(elevator, new_light)
           WatchdogList.update_watchdog_list(elevator.ip)
           %{elevator | orders: elevator.orders ++ [order], lights: new_lights}
-          |> replace_elevator_in_complete_list(elevator.ip, complete_list)
+          |> replace_elevator_in_complete_list(elevator_min.ip, complete_list)
         end
       _ ->
         new_complete_list =
@@ -242,8 +242,11 @@ end
         elevator_min = compute_min_cost_all_elevators(order, new_complete_list)
         IO.puts("Outside order, elevator ---- #{inspect elevator_min.ip} ---- takes order ---- #{inspect order} ---- computed by --- #{inspect Node.self()}")
         WatchdogList.update_watchdog_list(elevator_min.ip)
+        #======================================================================
+        #=========SOMETHING IS WRONG HERE ===================
+        #======================================================================
         %{elevator_min | orders: elevator_min.orders ++ [order]}
-        |> replace_elevator_in_complete_list(elevator.ip, new_complete_list)
+        |> replace_elevator_in_complete_list(elevator_min.ip, new_complete_list)
     end
   end
 
