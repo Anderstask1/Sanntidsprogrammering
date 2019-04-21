@@ -188,9 +188,9 @@ end
             new_lights = Enum.map(elevator.lights, fn  x ->
                 if x.type != :cab and state.direction == :idle do
                     if state.floor == x.floor do
-                        %Light{light | state: :off}
+                        %Light{x | state: :off}
                     else
-                      light
+                      x
                     end
                 else
                     x
