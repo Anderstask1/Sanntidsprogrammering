@@ -185,25 +185,20 @@ end
     IO.puts "Lets update the system list from the elevator #{inspect sender_ip}"
     IO.puts "the status now is #{inspect state}"
     new_complete_list = Enum.map(complete_list, fn  elevator ->
-        if elevator.orders != [] and elevator.orders != nil do
-            new_lights = Enum.map(elevator.lights, fn  x ->
-                if x.type != :cab and state.direction == :idle do
-                    if state.floor == x.floor do
-                        IO.puts "Turning off the fucking lights"
-                        IO.puts "Fcking light: #{inspect x}"
-                        Light.init(x.type, x.floor, :off)
-                    else
-                      x
-                    end
+        new_lights = Enum.map(elevator.lights, fn  x ->
+            if x.type != :cab and state.direction == :idle do
+                if state.floor == x.floor do
+                    IO.puts "Turning off the fucking lights"
+                    IO.puts "Fcking light: #{inspect x}"
+                    Light.init(x.type, x.floor, :off)
                 else
-                    x
+                  x
                 end
-            end)
-            Elevator.init(elevator.harakiri, elevator.ip,elevator.state, elevator.orders, new_lights)
-        else
-            IO.puts "NOpe :("
-            elevator
-        end
+            else
+                x
+            end
+        end)
+        Elevator.init(elevator.harakiri, elevator.ip,elevator.state, elevator.orders, new_lights)
     end)
 
 
