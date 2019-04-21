@@ -192,7 +192,7 @@ end
                     if state.floor == x.floor do
                         IO.puts "Turning off the fucking lights"
                         IO.puts "Fcking light: #{inspect x}"
-                        init(x.type, x.floor, :off)
+                        Light.init(x.type, x.floor, :off)
                     else
                       x
                     end
