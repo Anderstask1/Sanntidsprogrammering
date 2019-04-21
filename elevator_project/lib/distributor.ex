@@ -187,14 +187,18 @@ end
   """
   def update_system_list(sender_ip, state = %State{}, complete_list) do
     new_complete_list = Enum.map(complete_list, fn  elevator ->
-        new_lights = Enum.map(elevator.lights, fn  x ->
-            if x.type != :cab and elevator.state.direction == :idle do
-                update_light(state,x)
-            else
-                x
-            end
-        end)
-        Elevator.init(elevator.harakiri, elevator.ip,elevator.state, elevator.orders, new_lights)
+        if elevator.orders != [] and elevator.orders != nil do
+            new_lights = Enum.map(elevator.lights, fn  x ->
+                if x.type != :cab and elevator.state.direction == :idle do
+                    update_light(state,x)
+                else
+                    x
+                end
+            end)
+            Elevator.init(elevator.harakiri, elevator.ip,elevator.state, elevator.orders, new_lights)
+        else
+            elevator
+        end
     end)
 
 
