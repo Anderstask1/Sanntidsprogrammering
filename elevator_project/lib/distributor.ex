@@ -231,7 +231,7 @@ end
           new_lights = change_state_light_in_list(elevator, new_light)
           WatchdogList.update_watchdog_list(elevator.ip)
           %{elevator | orders: elevator.orders ++ [order], lights: new_lights}
-          |> replace_elevator_in_complete_list(elevator_min.ip, complete_list)
+          |> replace_elevator_in_complete_list(elevator.ip, complete_list)
         end
       _ ->
         new_complete_list =
