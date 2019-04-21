@@ -69,20 +69,43 @@ defmodule Distributor do
   def handle_call({:send_order, order, ip}, from, complete_list) do
       IO.puts("The reveived order is from ip#{inspect ip}")
       IO.puts("Handle milticall send order from --- #{inspect from}")
-      kill_broken_elevators(complete_list)
-      updated = update_system_list(ip, order, complete_list)
-      IO.puts("The updated list with the new order is")
-      print_list(updated)
-    {:reply, :ok, updated}
+      #kill_broken_elevators(complete_list)
+      if get_elevator_in_complete_list(ip, complete_list) != nil do
+          updated = update_system_list(ip, order, complete_list)
+          IO.puts("The updated list with the new order is")
+          print_list(updated)
+          {:reply, :ok, updated}
+      else
+          IO.puts "Trying to update the orders of an elevator that is not in the system yet"
+          {:reply, :ok, complete_list}
+      end
   end
 
   def handle_call({:send_state, state, ip}, _from, complete_list) do
-    kill_broken_elevators(complete_list)
-    {:reply, :ok, update_system_list(ip, state, complete_list)}
+    #kill_broken_elevators(complete_list)
+    if get_elevator_in_complete_list(ip, complete_list) != nil do
+        if get_elevator_in_complete_list(ip, complete_list).state == state do
+            {:reply, :ok, complete_list}
+        else
+            {:reply, :ok, update_system_list(ip, state, complete_list)}
+        end
+    else
+        IO.puts "Trying to update the state of an elevator that is not in the system yet"
+        {:reply, :ok, complete_list}
+    end
   end
 
   def handle_call({:send_lights, lights, ip}, _from, complete_list) do
-    {:reply, :ok, update_system_list(ip, lights, complete_list)}
+      if get_elevator_in_complete_list(ip, complete_list) != nil do
+          if get_elevator_in_complete_list(ip, complete_list).lights == lights do
+              {:reply, :ok, complete_list}
+          else
+              {:reply, :ok, update_system_list(ip, lights, complete_list)}
+          end
+      else
+          IO.puts "Trying to update the lights of an elevator that is not in the system yet"
+          {:reply, :ok, complete_list}
+      end
   end
 
   def handle_call({:add_to_complete_list, elevator, ip}, _from, complete_list) do
@@ -163,6 +186,9 @@ end
   floors, and kill the node if that is the case
   """
   def update_system_list(sender_ip, state = %State{}, complete_list) do
+    IO.puts "Lets update the state in the list for the elevator #{inspect sender_ip}"
+    IO.puts "in the list"
+    print_list(complete_list)
     elevator = get_elevator_in_complete_list(sender_ip, complete_list)
     temp =
       if elevator.orders != [] and elevator.orders != nil do
@@ -330,17 +356,17 @@ end
   end
 
   def print_list(list) do
-    IO.puts "<==================================================================>"
+    IO.puts "<=========================================================================================>"
     IO.puts   "<=========== Complete list with #{inspect length(list)} elevator(s)======================>"
     Enum.map(list, fn ele ->
       IO.puts "<@@Elevator #{inspect ele.ip} with state #{inspect ele.state}"
       IO.puts "<======List of lights  with #{inspect length(ele.lights)} lights"
       #Enum.map(ele.lights, fn light -> IO.write "#{inspect light}||" end)
       IO.puts " "
-      IO.puts "<======List of orders  with #{inspect length(ele.lights)} orders"
+      IO.puts "<======List of orders  with #{inspect length(ele.orders)} orders"
       Enum.map(ele.orders, fn order -> IO.puts "#{inspect order}" end)
     end)
-      IO.puts   "<=========================================================>"
+      IO.puts "<=========================================================================================>"
   end
 
 end
