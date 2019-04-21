@@ -221,11 +221,11 @@ end
         else
           Elevator.init(elevator.harakiri, elevator.ip, state, elevator.orders, elevator.lights)
         end
-        |> replace_elevator_in_complete_list(sender_ip, new_complete_list)
+        |> replace_elevator_in_complete_list(sender_ip, complete_list)
       else
         WatchdogList.update_watchdog_list(elevator.ip)
         Elevator.init(elevator.harakiri, elevator.ip, state, elevator.orders, elevator.lights)
-        |> replace_elevator_in_complete_list(sender_ip, new_complete_list)
+        |> replace_elevator_in_complete_list(sender_ip, complete_list)
       end
     # temp
     end)
