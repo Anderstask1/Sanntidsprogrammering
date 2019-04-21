@@ -110,7 +110,9 @@ defmodule Distributor do
     case {Enum.member?(Enum.map(complete_list, fn list_elevator -> list_elevator.ip end), elevator.ip), elevator.state != nil} do
       {true, true} ->
         IO.puts("TRUE")
-        {:reply, :ok, replace_elevator_in_complete_list(elevator, elevator.ip, complete_list)}
+        replaced_list = replace_elevator_in_complete_list(elevator, elevator.ip, complete_list)
+        sorted_list = Enum.sort_by(replaced_list, fn d -> d.ip end)
+        {:reply, :ok, sorted_list}
       {false, true} ->
         IO.puts("FALSE1")
         new_list=complete_list ++ [elevator]
