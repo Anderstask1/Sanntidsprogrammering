@@ -113,7 +113,9 @@ defmodule Distributor do
         {:reply, :ok, replace_elevator_in_complete_list(elevator, elevator.ip, complete_list)}
       {false, true} ->
         IO.puts("FALSE1")
-        {:reply, :ok, complete_list ++ [elevator]}
+        new_list=complete_list ++ [elevator]
+        sorted_list = Enum.sort_by(new_list, fn d -> d.ip end)
+        {:reply, :ok, sorted_list}
       _ ->
         IO.puts("FALSE2")
         {:reply, :ok, complete_list}

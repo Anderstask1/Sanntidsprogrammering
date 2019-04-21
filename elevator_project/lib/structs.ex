@@ -179,7 +179,7 @@ defmodule CreateList do
     light3 = Light.init(:hall_up, 2, :on)
     lights = [light1, light2, light3]
 
-    ip1 = {10, 100, 23, 150}
+    ip1 = "heis@123.123.123.54"
 
     elevator1 = Elevator.init(false, ip1, state, orders, lights)
 
@@ -197,7 +197,7 @@ defmodule CreateList do
     light3 = Light.init(:hall_down, 3, :on)
     lights = [light1, light2, light3]
 
-    ip2 = {10, 101, 23, 151}
+    ip2 = "heis@123.123.123.96"
 
     elevator2 = Elevator.init(false, ip2, state, orders, lights)
 
@@ -211,7 +211,7 @@ defmodule CreateList do
     light3 = Light.init(:hall_up, 2, :on)
     lights = [light1, light2, light3]
 
-    ip3 = {10, 100, 23, 152}
+    ip3 = "heis@123.123.123.3"
 
     elevator3 = Elevator.init(false, ip3, state, orders, lights)
 
@@ -234,7 +234,7 @@ defmodule CreateList do
     light3 = Light.init(:hall_up, 2, :on)
     lights = [light1, light2, light3]
 
-    ip1 = {10, 100, 23, 151}
+    ip1 = "heis@123.123.123.3"
 
     elevator1 = Elevator.init(false, ip1, state, orders, lights)
 
