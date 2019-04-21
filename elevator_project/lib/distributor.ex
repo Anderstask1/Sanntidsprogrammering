@@ -182,15 +182,11 @@ end
   floors, and kill the node if that is the case
   """
   def update_system_list(sender_ip, state = %State{}, complete_list) do
-    IO.puts "Lets update the system list from the elevator #{inspect sender_ip}"
-    IO.puts "the status now is #{inspect state}"
     new_complete_list = Enum.map(complete_list, fn  elevator ->
         if elevator.lights != [] do
             new_lights = Enum.map(elevator.lights, fn  x ->
                 if x.type != :cab and state.direction == :idle do
                     if state.floor == x.floor do
-                        IO.puts "Turning off the fucking lights"
-                        IO.puts "Fcking light: #{inspect x}"
                         Light.init(x.type, x.floor, :off)
                     else
                       x
