@@ -2,6 +2,7 @@ defmodule Init do
   def init(tick_time \\ 15000) do
     ip = Utilities.get_my_ip() |> Utilities.ip_to_string()
     full_name = "heis" <> "@" <> ip
+    IO.puts("Full name #{inspect full_name}")
     Node.start(String.to_atom(full_name), :longnames, tick_time)
     Node.set_cookie :hello
     Main.Supervisor.start_link([])
@@ -91,8 +92,10 @@ defmodule UDP_Beacon do
   end
 
   def init(port) do
+    IO.puts("HEloooo init(port) and the port is #{inspect port}")
     {:ok, beaconSocket} = :gen_udp.open(port, [active: false, broadcast: true])
     beacon(beaconSocket)
+    IO.puts("exxitinggslkfjglsjglskdjf")
   end
 
 
@@ -152,7 +155,6 @@ defmodule Monitor do
 
   def handle_info({:nodeup, node_name}, state) do
     :timer.sleep(3000)
-    # IO.puts("MY LIST #{inspect Distributor.get_complete_list()}")
      Distributor.add_to_complete_list(Distributor.get_elevator_in_complete_list(Node.self(), Distributor.get_complete_list()), Node.self())
      {:noreply, state}
    end

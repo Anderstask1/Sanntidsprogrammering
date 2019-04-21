@@ -66,10 +66,14 @@ defmodule Distributor do
     {:reply, complete_list, complete_list}
   end
 
-  def handle_call({:send_order, order, ip}, _from, complete_list) do
-      IO.puts("Complete list --- #{inspect ip}")
+  def handle_call({:send_order, order, ip}, from, complete_list) do
+      IO.puts("The reveived order is from ip#{inspect ip}")
+      IO.puts("Handle milticall send order from --- #{inspect from}")
       kill_broken_elevators(complete_list)
-    {:reply, :ok, update_system_list(ip, order, complete_list)}
+      updated = update_system_list(ip, order, complete_list)
+      IO.puts("The updated list with the new order is")
+      print_list(updated)
+    {:reply, :ok, updated}
   end
 
   def handle_call({:send_state, state, ip}, _from, complete_list) do
@@ -82,7 +86,8 @@ defmodule Distributor do
   end
 
   def handle_call({:add_to_complete_list, elevator, ip}, _from, complete_list) do
-    IO.puts("New node in cluster #{inspect complete_list}")
+    IO.puts("New node in cluster the complete list now is")
+    print_list(complete_list)
     case {Enum.member?(Enum.map(complete_list, fn list_elevator -> list_elevator.ip end), elevator.ip), elevator.state != nil} do
       {true, true} ->
         IO.puts("TRUE")
@@ -91,11 +96,7 @@ defmodule Distributor do
         IO.puts("FALSE")
         {:reply, :ok, complete_list ++ [elevator]}
       _ ->
-<<<<<<< HEAD
-        IO.puts("NIL")
-=======
         IO.puts("FALSE")
->>>>>>> 0a987a4269c33898cb550539b8685501108ac994
         {:reply, :ok, complete_list}
     end
   end
@@ -248,9 +249,6 @@ end
   end
 
   # ============== COST COMPUTATION ===================
-
-<<<<<<< HEAD
-=======
   # @doc """
   # Converts the direction in atoms to an integer
   # """
@@ -321,7 +319,7 @@ end
   #   index = Enum.find_index(cost_list, fn x -> x == min_cost end)
   #   Enum.at(complete_list, index)
   # end
->>>>>>> 0a987a4269c33898cb550539b8685501108ac994
+
 
   def compute_min_cost_all_elevators(order, complete_list) do
     cost_list = Enum.map(complete_list, fn elevator -> length(elevator.orders) + abs(elevator.state.floor - order.floor) end)
@@ -329,6 +327,20 @@ end
     min_cost = Enum.min(cost_list)
     index = Enum.find_index(cost_list, fn x -> x == min_cost end)
     Enum.at(complete_list, index)
+  end
+
+  def print_list(list) do
+    IO.puts "<==================================================================>"
+    IO.puts   "<=========== Complete list with #{inspect length(list)} elevator(s)======================>"
+    Enum.map(list, fn ele ->
+      IO.puts "<@@Elevator #{inspect ele.ip} with state #{inspect ele.state}"
+      IO.puts "<======List of lights  with #{inspect length(ele.lights)} lights"
+      #Enum.map(ele.lights, fn light -> IO.write "#{inspect light}||" end)
+      IO.puts " "
+      IO.puts "<======List of orders  with #{inspect length(ele.lights)} orders"
+      Enum.map(ele.orders, fn order -> IO.puts "#{inspect order}" end)
+    end)
+      IO.puts   "<=========================================================>"
   end
 
 end

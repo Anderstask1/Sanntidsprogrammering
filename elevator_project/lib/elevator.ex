@@ -119,6 +119,9 @@ defmodule Elevatorm do
     to the
   """
   def retrieve_local_backup do
+    #DELETING LOCAL BACKUP FOR TESTING
+    _=File.rm("local_backup")
+
     case File.read("local_backup") do
       {:ok, data} ->
         IO.puts("£  There is a backup avalible")
