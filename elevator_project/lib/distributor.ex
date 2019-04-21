@@ -190,6 +190,7 @@ end
             new_lights = Enum.map(elevator.lights, fn  x ->
                 if x.type != :cab and state.direction == :idle do
                     if state.floor == x.floor do
+                        IO.puts "Turning off the fucking lights"
                         %Light{x | state: :off}
                     else
                       x
