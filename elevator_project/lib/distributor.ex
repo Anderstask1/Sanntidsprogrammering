@@ -182,36 +182,34 @@ end
   floors, and kill the node if that is the case
   """
   def update_system_list(sender_ip, state = %State{}, complete_list) do
-    # IO.puts "Lets update the system list from the elevator #{inspect sender_ip}"
-    # IO.puts "the status now is #{inspect state}"
-    # IO.puts "Complete list with #{inspect length(complete_list)} elevator(s)"
-    # new_complete_list = Enum.map(complete_list, fn  elevator ->
-    #     if elevator.orders != [] and elevator.orders != nil do
-    #         new_lights = Enum.map(elevator.lights, fn  x ->
-    #             if x.type != :cab and state.direction == :idle do
-    #                 if state.floor == x.floor do
-    #                     IO.puts "Turning off the fucking lights"
-    #                     IO.puts "Fcking light: #{inspect x}"
-    #                     Light.init(x.type, x.floor, :off)
-    #                 else
-    #                   x
-    #                 end
-    #             else
-    #                 x
-    #             end
-    #         end)
-    #         Elevator.init(elevator.harakiri, elevator.ip,elevator.state, elevator.orders, new_lights)
-    #     else
-    #         IO.puts "NOpe :("
-    #         elevator
-    #     end
-    # end)
+    IO.puts "Lets update the system list from the elevator #{inspect sender_ip}"
+    IO.puts "the status now is #{inspect state}"
+    new_complete_list = Enum.map(complete_list, fn  elevator ->
+        if elevator.orders != [] and elevator.orders != nil do
+            new_lights = Enum.map(elevator.lights, fn  x ->
+                if x.type != :cab and state.direction == :idle do
+                    if state.floor == x.floor do
+                        IO.puts "Turning off the fucking lights"
+                        IO.puts "Fcking light: #{inspect x}"
+                        Light.init(x.type, x.floor, :off)
+                    else
+                      x
+                    end
+                else
+                    x
+                end
+            end)
+            Elevator.init(elevator.harakiri, elevator.ip,elevator.state, elevator.orders, new_lights)
+        else
+            IO.puts "NOpe :("
+            elevator
+        end
+    end)
 
 
 
-    # elevator = get_elevator_in_complete_list(sender_ip, new_complete_list)
-    # temp =
-    Enum.map(complete_list, fn  elevator ->
+    elevator = get_elevator_in_complete_list(sender_ip, new_complete_list)
+    temp =
       if elevator.orders != [] and elevator.orders != nil do
         if state.direction == :idle do
           new_lights = Enum.map(elevator.lights, fn  x -> update_light(state,x) end)
@@ -221,14 +219,13 @@ end
         else
           Elevator.init(elevator.harakiri, elevator.ip, state, elevator.orders, elevator.lights)
         end
-        |> replace_elevator_in_complete_list(sender_ip, complete_list)
+        |> replace_elevator_in_complete_list(sender_ip, new_complete_list)
       else
         WatchdogList.update_watchdog_list(elevator.ip)
         Elevator.init(elevator.harakiri, elevator.ip, state, elevator.orders, elevator.lights)
-        |> replace_elevator_in_complete_list(sender_ip, complete_list)
+        |> replace_elevator_in_complete_list(sender_ip, new_complete_list)
       end
-    # temp
-    end)
+    temp
   end
 
   @doc """
