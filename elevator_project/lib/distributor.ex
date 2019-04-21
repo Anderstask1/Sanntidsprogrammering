@@ -184,6 +184,7 @@ end
   def update_system_list(sender_ip, state = %State{}, complete_list) do
     IO.puts "Lets update the system list from the elevator #{inspect sender_ip}"
     IO.puts "the status now is #{inspect state}"
+    IO.puts "Complete list with #{inspect length(complete_list)} elevator(s)"
     new_complete_list = Enum.map(complete_list, fn  elevator ->
         if elevator.orders != [] and elevator.orders != nil do
             new_lights = Enum.map(elevator.lights, fn  x ->
