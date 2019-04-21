@@ -84,11 +84,7 @@ defmodule Distributor do
   def handle_call({:send_state, state, ip}, _from, complete_list) do
     #kill_broken_elevators(complete_list)
     if get_elevator_in_complete_list(ip, complete_list) != nil do
-        if get_elevator_in_complete_list(ip, complete_list).state == state do
-            {:reply, :ok, complete_list}
-        else
-            {:reply, :ok, update_system_list(ip, state, complete_list)}
-        end
+        {:reply, :ok, update_system_list(ip, state, complete_list)}
     else
         IO.puts "Trying to update the state of an elevator that is not in the system yet"
         {:reply, :ok, complete_list}
