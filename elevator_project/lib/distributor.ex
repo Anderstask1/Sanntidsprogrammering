@@ -97,7 +97,8 @@ defmodule Distributor do
 		        {:reply, :ok, complete_list}
 		    end
 		list_updated_harakiri ->
-			{:reply, :ok, complete_list}
+			IO.puts "Updating the list harakiri in STATE MACHINE"
+			{:reply, :harakiri, list_updated_harakiri}
 	end
   end
 
@@ -183,6 +184,8 @@ def kill_broken_elevators(complete_list) do
           update_system_list(List.first(new_list).ip, order, complete_list)
         end
       end)
+	  IO.puts("Returning the updated list")
+	  print_list(update)
 	  update
   else
 	  :ok
@@ -394,6 +397,7 @@ end
     IO.puts   "<=========== Complete list with #{inspect length(list)} elevator(s)======================>"
     Enum.map(list, fn ele ->
       IO.puts "<@@Elevator #{inspect ele.ip} with state #{inspect ele.state}"
+      IO.puts "<@@and harakiri set to #{inspect ele.harakiri}"
       IO.puts "<======List of lights  with #{inspect length(ele.lights)} lights"
       #Enum.map(ele.lights, fn light -> IO.write "#{inspect light}||" end)
       IO.puts " "
@@ -438,6 +442,10 @@ defmodule WatchdogList do
     GenServer.cast(:watchdoglist, {:update_watchdog_list, ip})
   end
 
+  def erase_elevator_watchdog_list(ip) do
+    GenServer.cast(:watchdoglist, {:erase_elevator_watchdog_list, ip})
+  end
+
   # -------------CAST AND CALLS -----------------
 
   def handle_call({:get_watchdog_list, find_ip}, _from, watchdog_list) do
@@ -464,4 +472,9 @@ defmodule WatchdogList do
       end)
     {:noreply, watchdog}
   end
+
+  def handle_cast({:erase_elevator_watchdog_list, ip}, watchdog_list) do
+	{:noreply, List.delete(watchdog_list,List.keyfind(watchdog_list, ip, 0))}
+  end
+
 end
