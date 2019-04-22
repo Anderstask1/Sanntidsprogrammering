@@ -190,7 +190,6 @@ def kill_broken_elevators(complete_list) do
 	      end)
 	  end
 	  IO.puts("Returning the updated list")
-	  WatchdogList.erase_elevator_watchdog_list(ip)
 	  print_list(update)
 	  update
   else
@@ -392,7 +391,14 @@ end
 
 
   def compute_min_cost_all_elevators(order, complete_list) do
-    cost_list = Enum.map(complete_list, fn elevator -> length(elevator.orders) + abs(elevator.state.floor - order.floor) end)
+    cost_list = Enum.map(complete_list, fn elevator ->
+		if elevator.harakiri do
+			length(elevator.orders) + abs(elevator.state.floor - order.floor) + 1000
+		else
+			length(elevator.orders) + abs(elevator.state.floor - order.floor)
+
+		end
+	end)
     IO.puts("Cost of different elevators is #{inspect cost_list}")
     min_cost = Enum.min(cost_list)
     index = Enum.find_index(cost_list, fn x -> x == min_cost end)

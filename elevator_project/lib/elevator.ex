@@ -46,13 +46,13 @@ defmodule Elevatorm do
     my_elevator = Enum.find(complete_system, fn elevator -> elevator.ip == ip end)
     if my_elevator.harakiri do
       #I have to kill myself
-      Enum.map(all_pids, fn pid -> Process.exit(pid, :kill) end)
-	  Distributor.delete_from_complete_list(Atom.to_string(Node.self))
-      IO.puts "Bye ;( "
-      IO.puts "¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤4"
-      IO.puts "¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤4"
-      IO.puts "¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤4"
-      Process.exit(self(), :kill)
+      # Enum.map(all_pids, fn pid -> Process.exit(pid, :kill) end)
+	  # Distributor.delete_from_complete_list(Atom.to_string(Node.self))
+      # IO.puts "Bye ;( "
+      # IO.puts "¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤4"
+      # IO.puts "¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤4"
+      # IO.puts "¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤4"
+      # Process.exit(self(), :kill)
     else
       store_local_backup(complete_system)
       {_state, _floor, movement} = ElevatorFSM.get_state()
