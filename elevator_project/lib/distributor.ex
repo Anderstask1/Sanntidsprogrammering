@@ -60,7 +60,7 @@ defmodule Distributor do
   end
 
   def update_list(new_list) do
-    GenServer.cast(:genserver, {:update_list, new_list})
+    GenServer.multi_call(Utilities.all_nodes, {:update_list, new_list})
   end
 
   # -------------CAST AND CALLS -----------------
@@ -101,7 +101,12 @@ defmodule Distributor do
 
 		list_updated_harakiri ->
 			IO.puts "Updating the list harakiri in STATE MACHINE"
-			{:reply, :harakiri, list_updated_harakiri}
+			if get_elevator_in_complete_list(ip, list_updated_harakiri) != nil do
+		        {:reply, :ok, update_system_list(ip, state, list_updated_harakiri)}
+		    else
+		        IO.puts "Trying to update the state of an elevator that is not in the system yet"
+		        {:reply, :ok, complete_list}
+		    end
 	end
   end
 
@@ -143,8 +148,8 @@ defmodule Distributor do
     {:noreply, List.delete(complete_list, get_elevator_in_complete_list(elevator_ip, complete_list))}
   end
 
-  def handle_cast({:update_list, new_list}, _complete_list) do
-    {:noreply, new_list}
+  def handle_call({:update_list, new_list},_from ,_complete_list) do
+    {:noreply,:ok ,new_list}
   end
 
   def delete_elevator_in_complete_list(elevator, complete_list) do

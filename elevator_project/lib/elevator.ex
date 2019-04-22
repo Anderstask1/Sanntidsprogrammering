@@ -357,6 +357,12 @@ defmodule ElevatorFSM do
 
   def handle_cast(:send_status, {state, floor, movement}) do
     Distributor.send_state(State.init(movement, floor), Node.self())
+	ip = Atom.to_string(Node.self())
+	my_list = Distributor.get_complete_list
+	my_elevator = Enum.find(my_list, fn elevator -> elevator.ip == ip end)
+		if my_elevator.harakiri do
+			Distributor.update_list(my_list)
+		end
     {:noreply, {state, floor, movement}}
   end
 
