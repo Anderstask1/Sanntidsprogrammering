@@ -164,18 +164,14 @@ def kill_broken_elevators(complete_list) do
         IO.puts("Master say goodbye ;( ")
         Process.exit(self(), :kill)
       end
-      delete_elevator_in_complete_list(broken_elevator, complete_list)
-      redistribute_orders(broken_elevator, complete_list)
+      new_list=delete_elevator_in_complete_list(broken_elevator, complete_list)
+	  Enum.each(broken_elevator.orders, fn order ->
+        if order != :cab do
+          update_system_list(List.first(new_list).ip, order, complete_list)
+        end
+      end)
   end
 end
-
-  def redistribute_orders(elevator, complete_list) do
-    Enum.each(elevator.orders, fn order ->
-      if order != :cab do
-        update_system_list(elevator.ip, order, complete_list)
-      end
-    end)
-  end
 
 
   @doc """
