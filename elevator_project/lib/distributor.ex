@@ -59,12 +59,18 @@ defmodule Distributor do
     GenServer.cast(:genserver, {:delete_from_complete_list, elevator_ip})
   end
 
+  def update_list(new_list) do
+    GenServer.cast(:genserver, {:update_list, new_list})
+  end
+
   # -------------CAST AND CALLS -----------------
 
   def handle_call(:get_complete_list, _from, complete_list) do
     #IO.puts("........complete_list #{inspect complete_list}")
     {:reply, complete_list, complete_list}
   end
+
+
 
   def handle_call({:send_order, order, ip}, from, complete_list) do
       IO.puts("The reveived order is from ip#{inspect ip}")
@@ -129,6 +135,10 @@ defmodule Distributor do
     {:noreply, List.delete(complete_list, get_elevator_in_complete_list(elevator_ip, complete_list))}
   end
 
+  def handle_cast({:update_list, new_list}, _complete_list) do
+    {:noreply, new_list}
+  end
+
   def delete_elevator_in_complete_list(elevator, complete_list) do
     List.delete(complete_list, elevator)
   end
@@ -165,6 +175,7 @@ def kill_broken_elevators(complete_list) do
         Process.exit(self(), :kill)
       end
       new_list=delete_elevator_in_complete_list(broken_elevator, complete_list)
+	  update_list(new_list)
 	  Enum.each(broken_elevator.orders, fn order ->
         if order != :cab do
           update_system_list(List.first(new_list).ip, order, complete_list)
