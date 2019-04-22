@@ -182,12 +182,15 @@ def kill_broken_elevators(complete_list) do
         Process.exit(self(), :kill)
       end
       new_list=delete_elevator_in_complete_list(broken_elevator, complete_list)
-	  Enum.each(broken_elevator.orders, fn order ->
-        if order != :cab do
-          update_system_list(List.first(new_list).ip, order, complete_list)
-        end
-      end)
+	  if broken_elevator.orders ! [] do
+		  Enum.each(broken_elevator.orders, fn order ->
+	        if order.type != :cab do
+	          update_system_list(List.first(new_list).ip, order, complete_list)
+	        end
+	      end)
+	  end
 	  IO.puts("Returning the updated list")
+	  WatchdogList.erase_elevator_watchdog_list(ip)
 	  print_list(update)
 	  update
   else
