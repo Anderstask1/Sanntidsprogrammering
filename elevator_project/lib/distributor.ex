@@ -96,6 +96,9 @@ defmodule Distributor do
 		        IO.puts "Trying to update the state of an elevator that is not in the system yet"
 		        {:reply, :ok, complete_list}
 		    end
+		nil->
+			{:reply, :ok, complete_list}
+
 		list_updated_harakiri ->
 			IO.puts "Updating the list harakiri in STATE MACHINE"
 			{:reply, :harakiri, list_updated_harakiri}
@@ -255,6 +258,7 @@ end
       else
         get_elevator_in_complete_list(sender_ip, complete_list)
       end
+
     IO.puts("--- THIS elevator received an order #{inspect elevator}")
     new_light = Light.init(order.type, order.floor, :on)
     case order.type do
