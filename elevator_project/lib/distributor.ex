@@ -69,7 +69,7 @@ defmodule Distributor do
   def handle_call({:send_order, order, ip}, from, complete_list) do
       IO.puts("The reveived order is from ip#{inspect ip}")
       IO.puts("Handle milticall send order from --- #{inspect from}")
-      #kill_broken_elevators(complete_list)
+      kill_broken_elevators(complete_list)
       if get_elevator_in_complete_list(ip, complete_list) != nil do
           updated = update_system_list(ip, order, complete_list)
           IO.puts("The updated list with the new order is")
@@ -82,7 +82,7 @@ defmodule Distributor do
   end
 
   def handle_call({:send_state, state, ip}, _from, complete_list) do
-    #kill_broken_elevators(complete_list)
+    kill_broken_elevators(complete_list)
     if get_elevator_in_complete_list(ip, complete_list) != nil do
         {:reply, :ok, update_system_list(ip, state, complete_list)}
     else
@@ -257,6 +257,7 @@ end
             new_lights = change_state_light_in_list(elevator_in_list, new_light)
             %{elevator_in_list | lights: new_lights}
           end)
+		IO.puts("Computing cost of order #{inspect order} in the list  #{inspect new_complete_list}")
         elevator_min = compute_min_cost_all_elevators(order, new_complete_list)
         IO.puts("Outside order, elevator ---- #{inspect elevator_min.ip} ---- takes order ---- #{inspect order} ---- computed by --- #{inspect Node.self()}")
         WatchdogList.update_watchdog_list(elevator_min.ip)
