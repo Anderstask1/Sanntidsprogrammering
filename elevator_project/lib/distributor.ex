@@ -75,7 +75,7 @@ defmodule Distributor do
   def handle_call({:send_order, order, ip}, from, complete_list) do
       IO.puts("The reveived order is from ip#{inspect ip}")
       IO.puts("Handle milticall send order from --- #{inspect from}")
-      kill_broken_elevators(complete_list)
+      #kill_broken_elevators(complete_list)
       if get_elevator_in_complete_list(ip, complete_list) != nil do
           updated = update_system_list(ip, order, complete_list)
           IO.puts("The updated list with the new order is")
@@ -88,13 +88,17 @@ defmodule Distributor do
   end
 
   def handle_call({:send_state, state, ip}, _from, complete_list) do
-    kill_broken_elevators(complete_list)
-    if get_elevator_in_complete_list(ip, complete_list) != nil do
-        {:reply, :ok, update_system_list(ip, state, complete_list)}
-    else
-        IO.puts "Trying to update the state of an elevator that is not in the system yet"
-        {:reply, :ok, complete_list}
-    end
+    case kill_broken_elevators(complete_list) do
+		:ok->
+		    if get_elevator_in_complete_list(ip, complete_list) != nil do
+		        {:reply, :ok, update_system_list(ip, state, complete_list)}
+		    else
+		        IO.puts "Trying to update the state of an elevator that is not in the system yet"
+		        {:reply, :ok, complete_list}
+		    end
+		list_updated_harakiri ->
+			{:reply, :ok, complete_list}
+	end
   end
 
   def handle_call({:send_lights, lights, ip}, _from, complete_list) do
@@ -168,19 +172,20 @@ def kill_broken_elevators(complete_list) do
       {ip, _} = WatchdogList.is_elevator_broken()
       IO.puts("kill node #{inspect(ip)}")
       broken_elevator = get_elevator_in_complete_list(ip, complete_list)
-      %{broken_elevator | harakiri: true}
-      |> replace_elevator_in_complete_list(ip, complete_list) # Hakiri: Japanese= cut your belly
+      update=replace_elevator_in_complete_list(%{broken_elevator | harakiri: true},ip, complete_list) # Hakiri: Japanese= cut your belly
       if length(complete_list) == 1 do
         IO.puts("Master say goodbye ;( ")
         Process.exit(self(), :kill)
       end
       new_list=delete_elevator_in_complete_list(broken_elevator, complete_list)
-	  update_list(new_list)
 	  Enum.each(broken_elevator.orders, fn order ->
         if order != :cab do
           update_system_list(List.first(new_list).ip, order, complete_list)
         end
       end)
+	  update
+  else
+	  :ok
   end
 end
 
