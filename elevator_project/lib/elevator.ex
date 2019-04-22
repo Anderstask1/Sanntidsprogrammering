@@ -360,8 +360,10 @@ defmodule ElevatorFSM do
 	ip = Atom.to_string(Node.self())
 	my_list = Distributor.get_complete_list
 	my_elevator = Enum.find(my_list, fn elevator -> elevator.ip == ip end)
-		if my_elevator.harakiri do
-			Distributor.update_list(my_list)
+	if my_elevator != nil do
+			if my_elevator.harakiri do
+				Distributor.update_list(my_list)
+			end
 		end
     {:noreply, {state, floor, movement}}
   end
@@ -439,10 +441,18 @@ defmodule ElevatorFSM do
   def floor_collector(pid_driver, previous_floor) do
     new_floor = Driver.get_floor_sensor_state(pid_driver)
     if previous_floor != new_floor and new_floor != :between_floors do
-      update_floor(pid_driver)
-      Driver.set_floor_indicator(pid_driver, new_floor)
-      {_state, _floor, movement} = get_state()
-      Distributor.send_state(State.init(movement, new_floor), Node.self())
+    	update_floor(pid_driver)
+        Driver.set_floor_indicator(pid_driver, new_floor)
+        {_state, _floor, movement} = get_state()
+        Distributor.send_state(State.init(movement, new_floor), Node.self())
+	    ip = Atom.to_string(Node.self())
+  	    my_list = Distributor.get_complete_list
+  	    my_elevator = Enum.find(my_list, fn elevator -> elevator.ip == ip end)
+  	    if my_elevator != nil do
+  			if my_elevator.harakiri do
+  				Distributor.update_list(my_list)
+  			end
+  		end
     end
 
     floor_collector(pid_driver, new_floor)
