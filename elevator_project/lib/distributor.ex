@@ -182,7 +182,7 @@ def kill_broken_elevators(complete_list) do
         Process.exit(self(), :kill)
       end
       new_list=delete_elevator_in_complete_list(broken_elevator, complete_list)
-	  if broken_elevator.orders ! [] do
+	  if broken_elevator.orders != [] do
 		  Enum.each(broken_elevator.orders, fn order ->
 	        if order.type != :cab do
 	          update_system_list(List.first(new_list).ip, order, complete_list)
@@ -393,7 +393,7 @@ end
   def compute_min_cost_all_elevators(order, complete_list) do
     cost_list = Enum.map(complete_list, fn elevator ->
 		if elevator.harakiri do
-			length(elevator.orders) + abs(elevator.state.floor - order.floor) + 1000
+			length(elevator.orders) + abs(elevator.state.floor - order.floor) +1000
 		else
 			length(elevator.orders) + abs(elevator.state.floor - order.floor)
 
