@@ -83,7 +83,7 @@ defmodule Elevatorm do
       open_doors(pid_driver)
       ElevatorFSM.continue_working()
       :timer.sleep(100)
-      ElevatorFSM.send_status()
+      ElevatorFSM.send_status_privately()
       Process.exit(self(), :kill)
     end
     :timer.sleep(100)
