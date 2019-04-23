@@ -211,12 +211,15 @@ def kill_broken_elevators(complete_list) do
       end
       new_list=delete_elevator_in_complete_list(broken_elevator, complete_list)
 	  if broken_elevator.orders != [] do
-		  Enum.each(broken_elevator.orders, fn order ->
-	        if order.type != :cab do
-			  IO.puts("Redistributing the orders from the broken elevator")
-	          update_system_list(List.first(new_list).ip, order, update)
-	        end
-	      end)
+		  # Enum.each(broken_elevator.orders, fn order ->
+	      #   if order.type != :cab do
+			#   IO.puts("Redistributing the orders from the broken elevator")
+	      #     update_system_list(List.first(new_list).ip, order, update)
+	      #   end
+	      # end)
+		  trigger_elevator = List.first(new_list)
+		  redist_elevator=Elevator.init(trigger_elevator.harakiri, trigger_elevator.ip, trigger_elevator.state, trigger_elevator.orders ++ broken_elevator.orders, trigger_elevator.lights)
+		  replace_elevator_in_complete_list(redist_elevator, redist_elevator.ip, update)
 	  else
 		  IO.puts("Returning the updated list")
 		 print_list(update)
