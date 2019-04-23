@@ -48,7 +48,7 @@ defmodule Distributor do
 	elevator = get_elevator_in_complete_list(ip, complete_list)
 	if elevator.harakiri do
 		IO.puts"Cannot send the state, I am not working properly"
-		state=:harakiri
+		#state=:harakiri
 		GenServer.multi_call(Utilities.all_nodes, :genserver, {:send_state, state, ip})
 	else
 		GenServer.multi_call(Utilities.all_nodes, :genserver, {:send_state, state, ip})
