@@ -213,6 +213,7 @@ def kill_broken_elevators(complete_list) do
 	  if broken_elevator.orders != [] do
 		  Enum.each(broken_elevator.orders, fn order ->
 	        if order.type != :cab do
+			  IO.puts("Redistributing the orders from the broken elevator")
 	          update_system_list(List.first(new_list).ip, order, complete_list)
 	        end
 	      end)
@@ -282,42 +283,40 @@ end
   or adding it to light order list.
   """
   def update_system_list(sender_ip, order = %Order{}, complete_list) do
-	if sender_ip == Atom.to_string(Node.self()) do
-	    elevator =
-	      if get_elevator_in_complete_list(sender_ip, complete_list) == nil do
-	        Elevator.init([])
-	      else
-	        get_elevator_in_complete_list(sender_ip, complete_list)
-	      end
+    elevator =
+      if get_elevator_in_complete_list(sender_ip, complete_list) == nil do
+        Elevator.init([])
+      else
+        get_elevator_in_complete_list(sender_ip, complete_list)
+      end
 
-	    IO.puts("--- THIS elevator received an order #{inspect elevator}")
-	    new_light = Light.init(order.type, order.floor, :on)
-	    case order.type do
-	      :cab ->
-	        if Enum.any?(elevator.lights, fn light -> light.floor != new_light.floor and light.type != new_light.type end) or elevator.lights == [] do
-	          IO.puts("Cab order, elevator ---- #{inspect elevator.ip} ---- takes order ---- #{inspect order} ---- computed by --- #{inspect Node.self()}")
-	          new_lights = change_state_light_in_list(elevator, new_light)
-	          WatchdogList.update_watchdog_list(elevator.ip)
-	          %{elevator | orders: elevator.orders ++ [order], lights: new_lights}
-	          |> replace_elevator_in_complete_list(elevator.ip, complete_list)
-	        end
-	      _ ->
-	        new_complete_list =
-	          Enum.map(complete_list, fn elevator_in_list ->
-	            new_lights = change_state_light_in_list(elevator_in_list, new_light)
-	            %{elevator_in_list | lights: new_lights}
-	          end)
-			IO.puts("Computing cost of order #{inspect order} in the list  #{inspect new_complete_list}")
-	        elevator_min = compute_min_cost_all_elevators(order, new_complete_list)
-	        IO.puts("Outside order, elevator ---- #{inspect elevator_min.ip} ---- takes order ---- #{inspect order} ---- computed by --- #{inspect Node.self()}")
-	        WatchdogList.update_watchdog_list(elevator_min.ip)
-	        #======================================================================
-	        #=========SOMETHING IS WRONG HERE ===================
-	        #======================================================================
-	        %{elevator_min | orders: elevator_min.orders ++ [order]}
-	        |> replace_elevator_in_complete_list(elevator_min.ip, new_complete_list)
-	    end
-  	end
+    IO.puts("--- THIS elevator received an order #{inspect elevator}")
+    new_light = Light.init(order.type, order.floor, :on)
+    case order.type do
+      :cab ->
+        if Enum.any?(elevator.lights, fn light -> light.floor != new_light.floor and light.type != new_light.type end) or elevator.lights == [] do
+          IO.puts("Cab order, elevator ---- #{inspect elevator.ip} ---- takes order ---- #{inspect order} ---- computed by --- #{inspect Node.self()}")
+          new_lights = change_state_light_in_list(elevator, new_light)
+          WatchdogList.update_watchdog_list(elevator.ip)
+          %{elevator | orders: elevator.orders ++ [order], lights: new_lights}
+          |> replace_elevator_in_complete_list(elevator.ip, complete_list)
+        end
+      _ ->
+        new_complete_list =
+          Enum.map(complete_list, fn elevator_in_list ->
+            new_lights = change_state_light_in_list(elevator_in_list, new_light)
+            %{elevator_in_list | lights: new_lights}
+          end)
+		IO.puts("Computing cost of order #{inspect order} in the list  #{inspect new_complete_list}")
+        elevator_min = compute_min_cost_all_elevators(order, new_complete_list)
+        IO.puts("Outside order, elevator ---- #{inspect elevator_min.ip} ---- takes order ---- #{inspect order} ---- computed by --- #{inspect Node.self()}")
+        WatchdogList.update_watchdog_list(elevator_min.ip)
+        #======================================================================
+        #=========SOMETHING IS WRONG HERE ===================
+        #======================================================================
+        %{elevator_min | orders: elevator_min.orders ++ [order]}
+        |> replace_elevator_in_complete_list(elevator_min.ip, new_complete_list)
+    end
   end
 
   @doc """
