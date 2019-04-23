@@ -202,6 +202,7 @@ defmodule Distributor do
 def kill_broken_elevators(complete_list) do
   if WatchdogList.is_elevator_broken() != nil do
       {ip, _} = WatchdogList.is_elevator_broken()
+	  WatchdogList.update_watchdog_list(ip)
       IO.puts("kill node #{inspect(ip)}")
       broken_elevator = get_elevator_in_complete_list(ip, complete_list)
       update=replace_elevator_in_complete_list(%{broken_elevator | harakiri: true},ip, complete_list) # Hakiri: Japanese= cut your belly
