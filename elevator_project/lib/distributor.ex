@@ -101,25 +101,28 @@ defmodule Distributor do
         update=replace_elevator_in_complete_list(%{broken_elevator | harakiri: true},ip, complete_list)
 		{:reply, :ok, update}
 	else
-		case kill_broken_elevators(complete_list) do
-			:ok->
-			    if get_elevator_in_complete_list(ip, complete_list) != nil do
-			        {:reply, :ok, update_system_list(ip, state, complete_list)}
-			    else
-			        IO.puts "Trying to update the state of an elevator that is not in the system yet"
-			        {:reply, :ok, complete_list}
-			    end
-			nil->
-				{:reply, :ok, complete_list}
+		elevator = get_elevator_in_complete_list(ip, complete_list)
+		if elevator =! nil and elevator.harakiri == false do
+			case kill_broken_elevators(complete_list) do
+				:ok->
+				    if get_elevator_in_complete_list(ip, complete_list) != nil do
+				        {:reply, :ok, update_system_list(ip, state, complete_list)}
+				    else
+				        IO.puts "Trying to update the state of an elevator that is not in the system yet"
+				        {:reply, :ok, complete_list}
+				    end
+				nil->
+					{:reply, :ok, complete_list}
 
-			list_updated_harakiri ->
-				IO.puts "Updating the list harakiri in STATE MACHINE"
-				if get_elevator_in_complete_list(ip, list_updated_harakiri) != nil do
-			        {:reply, :ok, update_system_list(ip, state, list_updated_harakiri)}
-			    else
-			        IO.puts "Trying to update the state of an elevator that is not in the system yet"
-			        {:reply, :ok, complete_list}
-			    end
+				list_updated_harakiri ->
+					IO.puts "Updating the list harakiri in STATE MACHINE"
+					if get_elevator_in_complete_list(ip, list_updated_harakiri) != nil do
+				        {:reply, :ok, update_system_list(ip, state, list_updated_harakiri)}
+				    else
+				        IO.puts "Trying to update the state of an elevator that is not in the system yet"
+				        {:reply, :ok, complete_list}
+				    end
+			end
 		end
 	end
   end
