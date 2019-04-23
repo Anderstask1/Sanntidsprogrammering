@@ -214,13 +214,14 @@ def kill_broken_elevators(complete_list) do
 		  Enum.each(broken_elevator.orders, fn order ->
 	        if order.type != :cab do
 			  IO.puts("Redistributing the orders from the broken elevator")
-	          update_system_list(List.first(new_list).ip, order, complete_list)
+	          update_system_list(List.first(new_list).ip, order, update)
 	        end
 	      end)
+	  else
+		  IO.puts("Returning the updated list")
+		 print_list(update)
+		 update
 	  end
-	  IO.puts("Returning the updated list")
-	  print_list(update)
-	  update
   else
 	  :ok
   end
