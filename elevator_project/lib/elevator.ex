@@ -292,6 +292,10 @@ defmodule ElevatorFSM do
     GenServer.cast(:genelevator, :send_status)
   end
 
+  def send_status_privately() do
+    GenServer.cast(:genelevator, :send_status_privately)
+  end
+
   # ========== CAST AND CALLS ==========================
 
   def handle_call(:get_state, _from, state) do
@@ -366,6 +370,9 @@ defmodule ElevatorFSM do
 			end
 		end
     {:noreply, {state, floor, movement}}
+  end
+  def handle_cast(:send_status_privately, {state, floor, movement}) do
+	{:noreply, {state, floor, movement}}
   end
 
   # ===============================================================================

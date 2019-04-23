@@ -307,7 +307,7 @@ end
             new_lights = change_state_light_in_list(elevator_in_list, new_light)
             %{elevator_in_list | lights: new_lights}
           end)
-		IO.puts("Computing cost of order #{inspect order} in the list  #{inspect new_complete_list}")
+		IO.puts("Computing cost of order #{inspect order} in the list ")
         elevator_min = compute_min_cost_all_elevators(order, new_complete_list)
         IO.puts("Outside order, elevator ---- #{inspect elevator_min.ip} ---- takes order ---- #{inspect order} ---- computed by --- #{inspect Node.self()}")
         WatchdogList.update_watchdog_list(elevator_min.ip)
