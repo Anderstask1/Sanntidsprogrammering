@@ -9,6 +9,7 @@ defmodule Elevatorm do
 		    {:ok, pid_FSM} = ElevatorFSM.start_link()
 		    IO.puts("FSM started")
 		    go_to_know_state(pid_driver)
+        ElevatorFSM.send_status()
 		    retrieve_local_backup()
 		    IO.puts("Spawn collectors")
 		    pid_elevator = self()
