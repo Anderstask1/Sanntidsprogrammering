@@ -132,20 +132,36 @@ defmodule Elevatorm do
   """
   def retrieve_local_backup do
     #DELETING LOCAL BACKUP FOR TESTING
-    _=File.rm("local_backup")
-
+    #_=File.rm("local_backup")
     case File.read("local_backup") do
       {:ok, data} ->
-        IO.puts("£  There is a backup avalible")
+        IO.puts("£  There is a backup avalible :D")
         complete_system = :erlang.binary_to_term(data)
         ip = Node.self()
         my_elevator = Enum.find(complete_system, fn elevator -> elevator.ip == ip end)
-        IO.puts("My elevator system retrieved : #{inspect(complete_system)}")
-        IO.puts("Sending backup the elevator to the distributor")
-        Enum.each(my_elevator.orders, fn order -> Distributor.send_order(order, Node.self()) end)
-        IO.puts(" STATE IS SET TO #{inspect my_elevator.state}")
-        Distributor.send_state(my_elevator.state, Node.self())
-        Distributor.send_lights(my_elevator.lights, Node.self())
+		if my_elevator.state != nil do
+			IO.puts("List of the system retrieved :")
+			Distributor.print_list(complete_system)
+	        IO.puts("My elevator system retrieved :")
+			Distributor.print_list([my_elevator])
+	        IO.puts("ReSending backup the elevator to the distributor with all the system orders")
+			Enum.each(complete_system, fn elev ->
+				Enum.each(elev.orders, fn order ->
+					Distributor.send_order(order, Node.self())
+				end)
+			end)
+	        IO.puts(" STATE IS SET TO #{inspect my_elevator.state}")
+	        Distributor.send_lights(my_elevator.lights, Node.self())
+		else
+			IO.puts("£  The backup is broken, lets create one")
+	        ip = Node.self()
+	        complete_system = CompleteSystem.init_list(ip)
+	        my_elevator = Enum.find(complete_system, fn elevator -> elevator.ip == ip end)
+	        IO.puts("Sending backup from elevator to the distributor")
+	        Enum.each(my_elevator.orders, fn order -> Distributor.send_order(order, Node.self()) end)
+	        IO.puts(" STATE IS SET TO #{inspect my_elevator.state}")
+	        Distributor.send_lights(my_elevator.lights, Node.self())
+		end
       {:error, :enoent} ->
         IO.puts("£  There is no backup, lets create one")
         ip = Node.self()
@@ -154,7 +170,6 @@ defmodule Elevatorm do
         IO.puts("Sending backup from elevator to the distributor")
         Enum.each(my_elevator.orders, fn order -> Distributor.send_order(order, Node.self()) end)
         IO.puts(" STATE IS SET TO #{inspect my_elevator.state}")
-        Distributor.send_state(my_elevator.state, Node.self())
         Distributor.send_lights(my_elevator.lights, Node.self())
       unspected ->
         IO.puts("Unespected read result : #{inspect(unspected)}")
