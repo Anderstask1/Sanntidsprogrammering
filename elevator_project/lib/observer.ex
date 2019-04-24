@@ -3,7 +3,8 @@ defmodule Init do
     ip = Utilities.get_my_ip() |> Utilities.ip_to_string()
     full_name = "heis" <> "@" <> ip
     IO.puts("Full name #{inspect full_name}")
-    Node.start(String.to_atom(full_name), :longnames, tick_time)
+    resp = Node.start(String.to_atom(full_name), :longnames, tick_time)
+    IO.puts("Node.start returns  #{inspect resp}")
     Node.set_cookie :hello
     Main.Supervisor.start_link([])
   end
@@ -68,6 +69,7 @@ defmodule Main.Supervisor do
   use Supervisor
 
   def start_link(init_arg) do
+    IO.puts("Calling Supervisor.start_link with argument #{inspect init_arg} and #{inspect __MODULE__}")
     Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__)
   end
 
@@ -78,7 +80,7 @@ defmodule Main.Supervisor do
       {UDP_Beacon, [45676]},
       {UDP_Radar, [45677]}
     ]
-
+    IO.puts("Spawning Monitor, UDP_Beacon and UDP_Radars")
     Supervisor.init(children, strategy: :one_for_one)
   end
 end

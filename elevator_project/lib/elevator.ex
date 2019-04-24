@@ -44,34 +44,38 @@ defmodule Elevatorm do
     #ip = get_my_local_ip()
     ip = Node.self()
     my_elevator = Enum.find(complete_system, fn elevator -> elevator.ip == ip end)
-    if my_elevator.harakiri do
-      #I have to kill myself
-      # Enum.map(all_pids, fn pid -> Process.exit(pid, :kill) end)
-	  # Distributor.delete_from_complete_list(Atom.to_string(Node.self))
-      # IO.puts "Bye ;( "
-      # IO.puts "¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤4"
-      # IO.puts "¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤4"
-      # IO.puts "¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤4"
-      # Process.exit(self(), :kill)
-    else
-      store_local_backup(complete_system)
-      {_state, _floor, movement} = ElevatorFSM.get_state()
-      ElevatorFSM.send_status()
-      if movement == :idle do
-        if my_elevator.orders != [] do
-          order = List.first(my_elevator.orders).floor
-          IO.puts("ELEV order taken #{inspect order} from node #{inspect Node.self()}")
-          spawn(fn -> elevator_loop(pid_FSM, pid_driver, order) end)
-          ElevatorFSM.send_status()
+    if my_elevator != nil do
+      if my_elevator.harakiri do
+        #I have to kill myself
+        # Enum.map(all_pids, fn pid -> Process.exit(pid, :kill) end)
+  	  # Distributor.delete_from_complete_list(Atom.to_string(Node.self))
+        # IO.puts "Bye ;( "
+        # IO.puts "¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤4"
+        # IO.puts "¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤4"
+        # IO.puts "¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤4"
+        # Process.exit(self(), :kill)
+      else
+        store_local_backup(complete_system)
+        {_state, _floor, movement} = ElevatorFSM.get_state()
+        ElevatorFSM.send_status()
+        if movement == :idle do
+          if my_elevator.orders != [] do
+            order = List.first(my_elevator.orders).floor
+            IO.puts("ELEV order taken #{inspect order} from node #{inspect Node.self()}")
+            spawn(fn -> elevator_loop(pid_FSM, pid_driver, order) end)
+            ElevatorFSM.send_status()
+          end
+        end
+        light_orders = my_elevator.lights
+        if light_orders != [] and light_orders != previus_lights do
+          Enum.map(light_orders, fn light -> action_light(light, pid_driver) end)
         end
       end
-      light_orders = my_elevator.lights
-      if light_orders != [] and light_orders != previus_lights do
-        Enum.map(light_orders, fn light -> action_light(light, pid_driver) end)
-      end
+      :timer.sleep(200)
+      executing_orders_loop(pid_FSM, pid_driver, all_pids, my_elevator.lights)
+    else
+      IO.puts("[ERROR!] -> elevator.ex:77 elevator that is not in the list tried to execute orders")
     end
-    :timer.sleep(200)
-    executing_orders_loop(pid_FSM, pid_driver, all_pids, my_elevator.lights)
   end
 
   def elevator_loop(pid_FSM, pid_driver, order) do
