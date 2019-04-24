@@ -94,17 +94,27 @@ defmodule UDP_Beacon do
   end
 
   def init(port) do
-    IO.puts("HEloooo init(port) and the port is #{inspect port}")
-    {:ok, beaconSocket} = :gen_udp.open(port, [active: false, broadcast: true])
-    beacon(beaconSocket)
-    IO.puts("exxitinggslkfjglsjglskdjf")
+    IO.puts("[INFO] init(port) and the port is #{inspect port}")
+	case :gen_udp.open(port, [active: false, broadcast: true]) do
+		{:ok, beaconSocket}->
+			beacon(beaconSocket)
+		unexpected ->
+			IO.puts("[ERROR] unexpected return open UDP_Beacon port -> #{inspect unexpected}")
+	end
   end
 
 
   def beacon(beaconSocket) do
-    :timer.sleep(1000 + :rand.uniform(500))
-    :ok = :gen_udp.send(beaconSocket, {255,255,255,255}, 45677, "package" )
-    beacon(beaconSocket)
+	case :gen_udp.send(beaconSocket, {255,255,255,255}, 45677, "package" ) do
+		:ok ->
+			beacon(beaconSocket)
+		unexpected ->
+			IO.puts("[ERROR] unexpected return when sending UDP_Beacon port -> #{inspect unexpected}")
+			IO.puts("trying again in 5 seconds")
+			:timer.sleep(5000)
+			beacon(beaconSocket)
+	end
+
   end
 end
 
@@ -117,8 +127,12 @@ defmodule UDP_Radar do
 
 
   def init(port) do
-    {:ok, radarSocket} = :gen_udp.open(port, [active: false, broadcast: true])
-    radar(radarSocket)
+	case :gen_udp.open(port, [active: false, broadcast: true]) do
+		{:ok, radarSocket}->
+			radar(radarSocket)
+		unexpected ->
+			IO.puts("[ERROR] unexpected return open UDP_Radar port -> #{inspect unexpected}")
+	end
   end
 
 

@@ -3,40 +3,44 @@ defmodule Elevatorm do
   This is the Elevator module
   """
   def start do
-    {:ok, pid_driver} = Driver.start()
-    IO.puts("Driver connected")
-    {:ok, pid_FSM} = ElevatorFSM.start_link()
-    IO.puts("FSM started")
-    go_to_know_state(pid_driver)
+	case Driver.start() do
+		{:ok, pid_driver} ->
+			IO.puts("Driver connected")
+		    {:ok, pid_FSM} = ElevatorFSM.start_link()
+		    IO.puts("FSM started")
+		    go_to_know_state(pid_driver)
+		    retrieve_local_backup()
+		    IO.puts("Spawn collectors")
+		    pid_elevator = self()
+		    IO.puts("STATE IS SET TO #{inspect ElevatorFSM.get_state()}")
+		    ElevatorFSM.send_status()
 
+		    IO.puts("22222222222-----------#{inspect Distributor.get_elevator_in_complete_list(Node.self(), Distributor.get_complete_list())}")
 
+		    pid_order_collector = spawn(fn -> ElevatorFSM.order_collector(pid_driver) end)
+		    pid_floor_collector = spawn(fn -> ElevatorFSM.floor_collector(pid_driver, pid_FSM) end)
 
-    retrieve_local_backup()
-    IO.puts("Spawn collectors")
-    pid_elevator = self()
-    IO.puts("STATE IS SET TO #{inspect ElevatorFSM.get_state()}")
-    ElevatorFSM.send_status()
+		    IO.puts("======================================")
+		    IO.puts("=DRIVER           #{inspect(pid_driver)}")
+		    IO.puts("=FSM_ELEVATOR     #{inspect(pid_FSM)}")
+		    IO.puts("=ELEVATOR         #{inspect(pid_elevator)}")
+		    IO.puts("=ORDER COLLECTOR  #{inspect(pid_order_collector)}")
+		    IO.puts("=FLOOR COLLECTOR  #{inspect(pid_floor_collector)}")
+		    IO.puts("======================================")
 
-    IO.puts("22222222222-----------#{inspect Distributor.get_elevator_in_complete_list(Node.self(), Distributor.get_complete_list())}")
+		    IO.puts("BAAAAAMMMM!!! Complete#{inspect Distributor.get_complete_list}")
+		    IO.puts("11111111111---------#{inspect Distributor.get_elevator_in_complete_list(Node.self(), Distributor.get_complete_list())}")
+		    Distributor.add_to_complete_list(Distributor.get_elevator_in_complete_list(Node.self(), Distributor.get_complete_list()), Node.self())
 
-    pid_order_collector = spawn(fn -> ElevatorFSM.order_collector(pid_driver) end)
-    pid_floor_collector = spawn(fn -> ElevatorFSM.floor_collector(pid_driver, pid_FSM) end)
+		    all_pids=[pid_order_collector,pid_floor_collector,pid_FSM, pid_driver]
+		    IO.puts("=FLOOR COLLECTOR  #{inspect(pid_floor_collector)}")
+		    executing_orders_loop(pid_FSM, pid_driver, all_pids,[])
+		unexpected ->
+			IO.puts("Unexpected Driver response when starting it, trying again in 1 seconds")
+			:timer.sleep(1000)
+			start
+	end
 
-    IO.puts("======================================")
-    IO.puts("=DRIVER           #{inspect(pid_driver)}")
-    IO.puts("=FSM_ELEVATOR     #{inspect(pid_FSM)}")
-    IO.puts("=ELEVATOR         #{inspect(pid_elevator)}")
-    IO.puts("=ORDER COLLECTOR  #{inspect(pid_order_collector)}")
-    IO.puts("=FLOOR COLLECTOR  #{inspect(pid_floor_collector)}")
-    IO.puts("======================================")
-
-    IO.puts("BAAAAAMMMM!!! Complete#{inspect Distributor.get_complete_list}")
-    IO.puts("11111111111---------#{inspect Distributor.get_elevator_in_complete_list(Node.self(), Distributor.get_complete_list())}")
-    Distributor.add_to_complete_list(Distributor.get_elevator_in_complete_list(Node.self(), Distributor.get_complete_list()), Node.self())
-
-    all_pids=[pid_order_collector,pid_floor_collector,pid_FSM, pid_driver]
-    IO.puts("=FLOOR COLLECTOR  #{inspect(pid_floor_collector)}")
-    executing_orders_loop(pid_FSM, pid_driver, all_pids,[])
   end
 
   def executing_orders_loop(pid_FSM, pid_driver, all_pids, previus_lights) do
