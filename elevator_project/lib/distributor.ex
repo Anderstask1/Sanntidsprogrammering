@@ -295,7 +295,9 @@ end
         get_elevator_in_complete_list(sender_ip, complete_list)
       end
 
-    IO.puts("--- THIS elevator received an order #{inspect elevator}")
+    IO.puts("[INFO]---> The elevator")
+    print_elevator(elevator)
+    IO.puts("received the #{inspect order}")
     new_light = Light.init(order.type, order.floor, :on)
     case order.type do
       :cab ->
@@ -447,15 +449,25 @@ end
     IO.puts "<=========================================================================================>"
     IO.puts   "<=========== Complete list with #{inspect length(list)} elevator(s)======================>"
     Enum.map(list, fn ele ->
-      IO.puts "<@@Elevator #{inspect ele.ip} with state #{inspect ele.state}"
+      IO.puts "<@@Elevator #{inspect ele.ip} with #{inspect ele.state}"
       IO.puts "<@@and harakiri set to #{inspect ele.harakiri}"
-      IO.puts "<======List of lights  with #{inspect length(ele.lights)} lights"
+      IO.puts "<======There is #{inspect length(ele.lights)} light orders"
       #Enum.map(ele.lights, fn light -> IO.write "#{inspect light}||" end)
-      IO.puts " "
-      IO.puts "<======List of orders  with #{inspect length(ele.orders)} orders"
-      Enum.map(ele.orders, fn order -> IO.puts "#{inspect order}" end)
+      #IO.puts " "
+      IO.puts "<======List of orders  with #{inspect length(ele.orders)} orders =======>"
+      Enum.map(ele.orders, fn order -> IO.puts "#{inspect order} >" end)
     end)
-      IO.puts "<=========================================================================================>"
+      IO.puts "<============================================>"
+  end
+
+  def print_elevator(elevator) do
+    IO.puts "<=========================================================================================>"
+    IO.puts   "<&&&Elevator #{inspect elevator.ip} with #{inspect elevator.state}>"
+      IO.puts "<&&&and harakiri set to #{inspect elevator.harakiri}"
+      IO.puts "<======There is #{inspect length(elevator.lights)} light orders"
+      IO.puts "<======List of orders  with #{inspect length(elevator.orders)} orders =======>"
+      Enum.map(elevator.orders, fn order -> IO.puts "#{inspect order} >" end)
+      IO.puts "<============================================>"
   end
 
 end

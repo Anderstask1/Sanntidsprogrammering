@@ -110,7 +110,16 @@ defmodule UDP_Beacon do
 			beacon(beaconSocket)
 		unexpected ->
 			IO.puts("[ERROR] unexpected return when sending UDP_Beacon port -> #{inspect unexpected}")
-			IO.puts("trying again in 5 seconds")
+			IO.puts("The network connection is down :(")
+			IO.puts("Taking all the orders from the system trying again in 5 seconds")
+			complete_system = Distributor.get_complete_list()
+			Enum.each(complete_system, fn elev ->
+				if elev.ip != Node.self() do
+					Enum.each(elev.orders, fn order ->
+						Distributor.send_order(order, Node.self())
+					end)
+				end
+			end)
 			:timer.sleep(5000)
 			beacon(beaconSocket)
 	end
