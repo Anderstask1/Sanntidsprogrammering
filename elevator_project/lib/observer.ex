@@ -120,6 +120,7 @@ defmodule UDP_Beacon do
 					Enum.each(elev.orders, fn order ->
 						Distributor.send_order(order, Node.self())
 					end)
+					Distributor.delete_from_complete_list(elev)
 				end
 			end)
 			:timer.sleep(5000)

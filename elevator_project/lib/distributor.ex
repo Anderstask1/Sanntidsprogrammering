@@ -429,7 +429,7 @@ end
 
   def compute_min_cost_all_elevators(order, complete_list) do
     cost_list = Enum.map(complete_list, fn elevator ->
-		if elevator.orders != nil and order != nil do
+		if elevator.orders != nil and elevator.state !=nil and order != nil do
 			if elevator.harakiri do
 				length(elevator.orders) + abs(elevator.state.floor - order.floor) +1000
 			else
