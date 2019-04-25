@@ -245,6 +245,7 @@ defmodule Elevatorm do
     case :inet.getif() do
       {:ok, [{ip, _defini1, _mask1}, {_nope, _defini, _mask2}]} -> ip
       {:ok, [_none1, {ip, _none2, _none3}, _none4]} -> ip
+	  {:ok, [{ip, _nont, _maskt}]} -> ip
     end
   end
 
