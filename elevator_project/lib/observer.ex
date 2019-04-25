@@ -180,6 +180,7 @@ defmodule Monitor do
    {:ok, state}
  end
 
+@impl true
  def handle_info({:nodedown, node_name}, state) do
     IO.puts("NODE DOWN -> #{node_name} redistributing its orders")
 	complete_system = Distributor.get_complete_list()
@@ -194,7 +195,8 @@ defmodule Monitor do
     {:noreply, state}
   end
 
-  def handle_info({:nodeup, node_name}, state) do
+  @impl true
+  def handle_info({:nodeup, _node_name}, state) do
     :timer.sleep(3000)
      Distributor.add_to_complete_list(Distributor.get_elevator_in_complete_list(Node.self(), Distributor.get_complete_list()), Node.self())
      {:noreply, state}

@@ -37,9 +37,9 @@ defmodule Elevatorm do
 		    IO.puts("=FLOOR COLLECTOR  #{inspect(pid_floor_collector)}")
 		    executing_orders_loop(pid_FSM, pid_driver, all_pids,[])
 		unexpected ->
-			IO.puts("Unexpected Driver response when starting it, trying again in 1 seconds")
+			IO.puts("Unexpected Driver response: #{inspect unexpected} when starting it, trying again in 1 seconds ")
 			:timer.sleep(1000)
-			start
+			start()
 	end
 
   end

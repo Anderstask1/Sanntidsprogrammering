@@ -5,8 +5,7 @@ defmodule Distributor do
   and states, but only the master distribitur distribute.
   """
   use GenServer
-  @bottom 0
-  @top 3
+  
 
   @doc """
   Input is a list of tuples with the ip of each node in the cluster.
@@ -146,7 +145,7 @@ defmodule Distributor do
       end
   end
 
-  def handle_call({:add_to_complete_list, elevator, ip}, _from, complete_list) do
+  def handle_call({:add_to_complete_list, elevator, _ip}, _from, complete_list) do
     IO.puts("New node in cluster the complete list now is")
     print_list(complete_list)
     case {Enum.member?(Enum.map(complete_list, fn list_elevator -> list_elevator.ip end), elevator.ip), elevator.state != nil} do
@@ -166,13 +165,13 @@ defmodule Distributor do
     end
   end
 
+  def handle_call({:update_list, new_list},_from ,_complete_list) do
+    {:noreply,:ok ,new_list}
+  end
+
   def handle_cast({:delete_from_complete_list, elevator_ip}, complete_list) do
     IO.puts("Delete elevator from list with name #{inspect elevator_ip}")
     {:noreply, List.delete(complete_list, get_elevator_in_complete_list(elevator_ip, complete_list))}
-  end
-
-  def handle_call({:update_list, new_list},_from ,_complete_list) do
-    {:noreply,:ok ,new_list}
   end
 
   def delete_elevator_in_complete_list(elevator, complete_list) do
