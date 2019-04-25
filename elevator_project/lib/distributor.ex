@@ -509,6 +509,10 @@ defmodule WatchdogList do
     GenServer.cast(:watchdoglist, {:erase_elevator_watchdog_list, ip})
   end
 
+  def restart() do
+    GenServer.cast(:watchdoglist,:restart)
+  end
+
   # -------------CAST AND CALLS -----------------
 
   def handle_call({:get_watchdog_list, find_ip}, _from, watchdog_list) do
@@ -538,6 +542,9 @@ defmodule WatchdogList do
 
   def handle_cast({:erase_elevator_watchdog_list, ip}, watchdog_list) do
 	{:noreply, List.delete(watchdog_list,List.keyfind(watchdog_list, ip, 0))}
+  end
+  def handle_cast(:restart, _watchdog_list) do
+   {:noreply,[]}
   end
 
 end

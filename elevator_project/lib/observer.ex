@@ -112,6 +112,8 @@ defmodule UDP_Beacon do
 			IO.puts("[ERROR] unexpected return when sending UDP_Beacon port -> #{inspect unexpected}")
 			IO.puts("The network connection is down :(")
 			IO.puts("Taking all the orders from the system trying again in 5 seconds")
+			WatchdogList.restart()
+			WatchdogList.add_to_watchdog_list(Node.self())
 			complete_system = Distributor.get_complete_list()
 			Enum.each(complete_system, fn elev ->
 				if elev.ip != Node.self() do
@@ -173,7 +175,15 @@ defmodule Monitor do
  end
 
  def handle_info({:nodedown, node_name}, state) do
-    IO.puts("NODE DOWN #{node_name}")
+    IO.puts("NODE DOWN -> #{node_name} redistributing its orders")
+	complete_system = Distributor.get_complete_list()
+	Enum.each(complete_system, fn elev ->
+		if elev.ip == node_name do
+			Enum.each(elev.orders, fn order ->
+				Distributor.send_order(order, Node.self())
+			end)
+		end
+	end)
     Distributor.delete_from_complete_list(node_name)
     {:noreply, state}
   end
