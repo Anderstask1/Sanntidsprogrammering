@@ -117,12 +117,17 @@ defmodule UDP_Beacon do
 			complete_system = Distributor.get_complete_list()
 			Enum.each(complete_system, fn elev ->
 				if elev.ip != Node.self() do
-					Enum.each(elev.orders, fn order ->
-						Distributor.send_order(order, Node.self())
-					end)
 					Distributor.delete_from_complete_list(elev)
 				end
 			end)
+			Enum.each(complete_system, fn elev ->
+				if elev.ip != Node.self() do
+					Enum.each(elev.orders, fn order ->
+						Distributor.send_order(order, Node.self())
+					end)
+				end
+			end)
+
 			:timer.sleep(5000)
 			beacon(beaconSocket)
 	end
@@ -178,14 +183,14 @@ defmodule Monitor do
  def handle_info({:nodedown, node_name}, state) do
     IO.puts("NODE DOWN -> #{node_name} redistributing its orders")
 	complete_system = Distributor.get_complete_list()
+	Distributor.delete_from_complete_list(node_name)
 	Enum.each(complete_system, fn elev ->
-		if elev.ip == node_name do
+		if elev.ip != node_name do
 			Enum.each(elev.orders, fn order ->
 				Distributor.send_order(order, Node.self())
 			end)
 		end
 	end)
-    Distributor.delete_from_complete_list(node_name)
     {:noreply, state}
   end
 
