@@ -5,7 +5,7 @@ defmodule Distributor do
   and states, but only the master distribitur distribute.
   """
   use GenServer
-  
+
 
   @doc """
   Input is a list of tuples with the ip of each node in the cluster.
@@ -79,9 +79,8 @@ defmodule Distributor do
 
 
 
-  def handle_call({:send_order, order, ip}, from, complete_list) do
+  def handle_call({:send_order, order, ip}, _from, complete_list) do
       IO.puts("The reveived order is from ip#{inspect ip}")
-      IO.puts("Handle milticall send order from --- #{inspect from}")
       #kill_broken_elevators(complete_list)
       if get_elevator_in_complete_list(ip, complete_list) != nil do
           updated = update_system_list(ip, order, complete_list)

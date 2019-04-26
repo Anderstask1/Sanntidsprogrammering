@@ -8,6 +8,7 @@ defmodule Test do
     :timer.sleep(1000)
 	  # System.cmd("epmd", ["-daemon"])
 	  # System.cmd("ElevatorServer", [])
+	  #spawn(fn -> System.cmd("ElevatorServer", []) end)
     pid_spawned_elevator = spawn(fn -> Elevatorm.start() end)
     IO.puts("PID ELEV #{inspect(pid_spawned_elevator)}")
 

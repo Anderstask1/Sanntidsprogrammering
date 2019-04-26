@@ -18,19 +18,19 @@ defmodule Utilities do
   end
 
   def get_my_ip do
-    {:ok, socket} = :gen_udp.open(6789, [active: false, broadcast: true])
-    case :gen_udp.send(socket, {255,255,255,255}, 6789, "test packet") do
-    	:ok ->
-			ip = case :gen_udp.recv(socket, 100, 1000) do
-		      {:ok, {ip, _port, _data}} -> ip
-		      {:error, _} -> {:error, :could_not_get_ip}
-		    end
-		    :gen_udp.close(socket)
-		    ip
-		_ ->
-			Elevatorm.get_my_local_ip
-    end
-
+    # {:ok, socket} = :gen_udp.open(6789, [active: false, broadcast: true])
+    # case :gen_udp.send(socket, {255,255,255,255}, 6789, "test packet") do
+    # 	:ok ->
+	# 		ip = case :gen_udp.recv(socket, 100, 1000) do
+	# 	      {:ok, {ip, _port, _data}} -> ip
+	# 	      {:error, _} -> {:error, :could_not_get_ip}
+	# 	    end
+	# 	    :gen_udp.close(socket)
+	# 	    ip
+	# 	_ ->
+	# 		Elevatorm.get_my_local_ip
+    #end
+	Elevatorm.get_my_local_ip
   end
 
   def get_full_name(ip) do
@@ -117,21 +117,26 @@ defmodule UDP_Beacon do
 			IO.puts("[ERROR] unexpected return when sending UDP_Beacon port -> #{inspect unexpected}")
 			IO.puts("The network connection is down :(")
 			IO.puts("Taking all the orders from the system trying again in 5 seconds")
-			WatchdogList.restart()
-			WatchdogList.add_to_watchdog_list(Node.self())
-			complete_system = Distributor.get_complete_list()
-			Enum.each(complete_system, fn elev ->
-				if elev.ip != Node.self() do
-					Distributor.delete_from_complete_list(elev)
-				end
-			end)
-			Enum.each(complete_system, fn elev ->
-				if elev.ip != Node.self() do
-					Enum.each(elev.orders, fn order ->
-						Distributor.send_order(order, Node.self())
-					end)
-				end
-			end)
+			# :timer.sleep(5000)
+        	# complete_system = Distributor.get_complete_list()
+			# if length(complete_system)==1 do
+			# 	:init.restart()
+			# end
+			# WatchdogList.restart()
+			# WatchdogList.add_to_watchdog_list(Node.self())
+			# complete_system = Distributor.get_complete_list()
+			# Enum.each(complete_system, fn elev ->
+			# 	if elev.ip != Node.self() do
+			# 		Distributor.delete_from_complete_list(elev)
+			# 	end
+			# end)
+			# Enum.each(complete_system, fn elev ->
+			# 	if elev.ip != Node.self() do
+			# 		Enum.each(elev.orders, fn order ->
+			# 			Distributor.send_order(order, Node.self())
+			# 		end)
+			# 	end
+			# end)
 
 			:timer.sleep(5000)
 			beacon(beaconSocket)
@@ -181,18 +186,19 @@ defmodule Monitor do
  @impl true
  def init(state) do
     IO.puts "Monitoring!"
-   :ok = :net_kernel.monitor_nodes(true)
+   :ok = :net_kernel.monitor_nodes(true, [node_type: :visible])
    {:ok, state}
  end
 
 @impl true
- def handle_info({:nodedown, node_name}, state) do
-    IO.puts("NODE DOWN -> #{node_name} redistributing its orders")
+ def handle_info({:nodedown, node_name,info}, state) do
+	IO.puts("[INFO]NODE DOWN -> #{node_name} with info list #{inspect info}")
 	complete_system = Distributor.get_complete_list()
 	Distributor.delete_from_complete_list(node_name)
 	Enum.each(complete_system, fn elev ->
-		if elev.ip != node_name do
+		if elev.ip != Node.self() do
 			Enum.each(elev.orders, fn order ->
+				IO.puts("Redistributing the order #{inspect order} from  #{node_name}")
 				Distributor.send_order(order, Node.self())
 			end)
 		end
@@ -201,7 +207,8 @@ defmodule Monitor do
   end
 
   @impl true
-  def handle_info({:nodeup, _node_name}, state) do
+  def handle_info({:nodeup, node_name,info}, state) do
+	IO.puts("[INFO]NODE UP -> #{node_name} with info list #{inspect info}")
     :timer.sleep(3000)
      Distributor.add_to_complete_list(Distributor.get_elevator_in_complete_list(Node.self(), Distributor.get_complete_list()), Node.self())
      {:noreply, state}

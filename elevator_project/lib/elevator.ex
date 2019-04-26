@@ -9,7 +9,7 @@ defmodule Elevatorm do
 		    {:ok, pid_FSM} = ElevatorFSM.start_link()
 		    IO.puts("FSM started")
 		    go_to_know_state(pid_driver)
-        ElevatorFSM.send_status()
+        	ElevatorFSM.send_status()
 		    retrieve_local_backup()
 		    IO.puts("Spawn collectors")
 		    pid_elevator = self()
@@ -46,7 +46,6 @@ defmodule Elevatorm do
 
   def executing_orders_loop(pid_FSM, pid_driver, all_pids, previus_lights) do
     complete_system = Distributor.get_complete_list()
-    #ip = get_my_local_ip()
     ip = Node.self()
     my_elevator = Enum.find(complete_system, fn elevator -> elevator.ip == ip end)
     if my_elevator != nil do
@@ -386,9 +385,11 @@ defmodule ElevatorFSM do
     if order != floor and movement == :idle do
         if order > floor do
           Driver.set_motor_direction(pid_driver, :up)
+		  Distributor.send_state(State.init(:up, floor), Node.self())
           {:noreply, {:MOVE, floor, :up}}
         else
           Driver.set_motor_direction(pid_driver, :down)
+		  Distributor.send_state(State.init(:down, floor), Node.self())
           {:noreply, {:MOVE, floor, :down}}
         end
     else
