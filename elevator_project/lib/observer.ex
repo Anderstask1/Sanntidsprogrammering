@@ -18,19 +18,19 @@ defmodule Utilities do
   end
 
   def get_my_ip do
-    # {:ok, socket} = :gen_udp.open(6789, [active: false, broadcast: true])
-    # case :gen_udp.send(socket, {255,255,255,255}, 6789, "test packet") do
-    # 	:ok ->
-	# 		ip = case :gen_udp.recv(socket, 100, 1000) do
-	# 	      {:ok, {ip, _port, _data}} -> ip
-	# 	      {:error, _} -> {:error, :could_not_get_ip}
-	# 	    end
-	# 	    :gen_udp.close(socket)
-	# 	    ip
-	# 	_ ->
-	# 		Elevatorm.get_my_local_ip
-    #end
-	Elevatorm.get_my_local_ip
+    {:ok, socket} = :gen_udp.open(6789, [active: false, broadcast: true])
+    case :gen_udp.send(socket, {255,255,255,255}, 6789, "test packet") do
+    	:ok ->
+			ip = case :gen_udp.recv(socket, 100, 1000) do
+		      {:ok, {ip, _port, _data}} -> ip
+		      {:error, _} -> {:error, :could_not_get_ip}
+		    end
+		    :gen_udp.close(socket)
+		    ip
+		_ ->
+			Elevatorm.get_my_local_ip
+    end
+	# Elevatorm.get_my_local_ip
   end
 
   def get_full_name(ip) do
