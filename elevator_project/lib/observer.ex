@@ -206,6 +206,7 @@ defmodule Monitor do
     {:noreply, state}
   end
 
+
   @impl true
   def handle_info({:nodeup, node_name,info}, state) do
 	IO.puts("[INFO]NODE UP -> #{node_name} with info list #{inspect info}")
@@ -213,5 +214,10 @@ defmodule Monitor do
      Distributor.add_to_complete_list(Distributor.get_elevator_in_complete_list(Node.self(), Distributor.get_complete_list()), Node.self())
      {:noreply, state}
    end
+   @impl true
+    def handle_info(some, state) do
+   	IO.puts("[INFO]NODE HANDLE INFO ->  #{some}")
+       {:noreply, state}
+     end
 
 end

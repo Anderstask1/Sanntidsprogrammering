@@ -35,7 +35,7 @@ defmodule Elevatorm do
 
 		    all_pids=[pid_order_collector,pid_floor_collector,pid_FSM, pid_driver]
 		    IO.puts("=FLOOR COLLECTOR  #{inspect(pid_floor_collector)}")
-		    executing_orders_loop(pid_FSM, pid_driver, all_pids,[])
+		    executing_orders_loop(pid_FSM, pid_driver, all_pids,[], nil)
 		unexpected ->
 			IO.puts("Unexpected Driver response: #{inspect unexpected} when starting it, trying again in 1 seconds ")
 			:timer.sleep(1000)
@@ -44,7 +44,7 @@ defmodule Elevatorm do
 
   end
 
-  def executing_orders_loop(pid_FSM, pid_driver, all_pids, previus_lights) do
+  def executing_orders_loop(pid_FSM, pid_driver, all_pids, previus_lights, previus_order) do
     complete_system = Distributor.get_complete_list()
     ip = Node.self()
     my_elevator = Enum.find(complete_system, fn elevator -> elevator.ip == ip end)
@@ -62,13 +62,16 @@ defmodule Elevatorm do
         store_local_backup(complete_system)
         {_state, _floor, movement} = ElevatorFSM.get_state()
         ElevatorFSM.send_status()
+        order_st = List.first(my_elevator.orders)
         if movement == :idle do
-          if my_elevator.orders != [] do
+          if my_elevator.orders != [] and previus_order != List.first(my_elevator.orders)  do
             order = List.first(my_elevator.orders).floor
             IO.puts("ELEV order taken #{inspect order} from node #{inspect Node.self()}")
             spawn(fn -> elevator_loop(pid_FSM, pid_driver, order) end)
             ElevatorFSM.send_status()
+
           end
+          previus_order = order_st
         end
         light_orders = my_elevator.lights
         if light_orders != [] and light_orders != previus_lights do
@@ -76,7 +79,7 @@ defmodule Elevatorm do
         end
       end
       :timer.sleep(200)
-      executing_orders_loop(pid_FSM, pid_driver, all_pids, my_elevator.lights)
+      executing_orders_loop(pid_FSM, pid_driver, all_pids, my_elevator.lights, previus_order)
     else
       IO.puts("[ERROR!] -> elevator.ex:77 elevator that is not in the list tried to execute orders")
     end
@@ -88,13 +91,15 @@ defmodule Elevatorm do
     if current_floor == order do
       Driver.set_motor_direction(pid_driver, :stop)
       ElevatorFSM.arrived(pid_driver)
+      :timer.sleep(100)
       open_doors(pid_driver)
+
       ElevatorFSM.continue_working()
       :timer.sleep(100)
-      ElevatorFSM.send_status_privately()
+      ElevatorFSM.send_status()
       Process.exit(self(), :kill)
     end
-    :timer.sleep(100)
+    :timer.sleep(300)
     elevator_loop(pid_FSM, pid_driver, order)
   end
 
