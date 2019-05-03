@@ -48,7 +48,7 @@ defmodule Elevatorm do
     complete_system = Distributor.get_complete_list()
     ip = Node.self()
     my_elevator = Enum.find(complete_system, fn elevator -> elevator.ip == ip end)
-    if my_elevator != nil do
+    if my_elevator != nil  do
       if my_elevator.harakiri do
         #I have to kill myself
         # Enum.map(all_pids, fn pid -> Process.exit(pid, :kill) end)
@@ -69,9 +69,7 @@ defmodule Elevatorm do
             IO.puts("ELEV order taken #{inspect order} from node #{inspect Node.self()}")
             spawn(fn -> elevator_loop(pid_FSM, pid_driver, order) end)
             ElevatorFSM.send_status()
-
           end
-          previus_order = order_st
         end
         light_orders = my_elevator.lights
         if light_orders != [] and light_orders != previus_lights do
@@ -79,6 +77,7 @@ defmodule Elevatorm do
         end
       end
       :timer.sleep(200)
+      previus_order = List.first(my_elevator.orders)
       executing_orders_loop(pid_FSM, pid_driver, all_pids, my_elevator.lights, previus_order)
     else
       IO.puts("[ERROR!] -> elevator.ex:77 elevator that is not in the list tried to execute orders")
